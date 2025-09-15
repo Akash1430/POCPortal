@@ -35,7 +35,6 @@ namespace EmployeeManagementSystem.Domain.Entities
 
         // Navigation properties
         public virtual UserRole UserRole { get; set; } = null!;
-        public virtual ICollection<UserRoleAccess> UserRoleAccesses { get; set; } = new List<UserRoleAccess>();
         public virtual User? CreatedByUser { get; set; }
         public virtual User? UpdatedByUser { get; set; }
         

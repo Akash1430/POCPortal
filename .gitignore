@@ -22,6 +22,11 @@ obj/
 packages/
 *.snupkg
 
+# Environment files
+.env
+.env.local
+.env.*.local
+
 # OS generated files
 .DS_Store
 Thumbs.db

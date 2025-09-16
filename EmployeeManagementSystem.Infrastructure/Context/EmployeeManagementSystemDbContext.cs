@@ -15,6 +15,7 @@ namespace EmployeeManagementSystem.Infrastructure.Context
         public DbSet<Module> Modules { get; set; }
         public DbSet<ModuleAccess> ModuleAccesses { get; set; }
         public DbSet<UserRoleAccess> UserRoleAccesses { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -169,6 +170,39 @@ namespace EmployeeManagementSystem.Infrastructure.Context
 
                 entity.HasOne(d => d.UpdatedByUser)
                     .WithMany(p => p.UpdatedUserRoleAccesses)
+                    .HasForeignKey(d => d.LatestUpdatedBy)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<RefreshToken>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Token).IsRequired().HasMaxLength(500).HasColumnType("nvarchar(500)");
+                entity.Property(e => e.UserId).IsRequired();
+                entity.Property(e => e.ExpiryDateUTC).IsRequired().HasColumnType("datetime2");
+                entity.Property(e => e.IsRevoked).IsRequired().HasColumnType("bit").HasDefaultValue(false);
+                entity.Property(e => e.RevokedDateUTC).HasColumnType("datetime2");
+                entity.Property(e => e.RevokedByIp).HasMaxLength(100).HasColumnType("nvarchar(100)");
+                entity.Property(e => e.ReplacedByToken).HasMaxLength(500).HasColumnType("nvarchar(500)");
+                entity.Property(e => e.ReasonRevoked).HasMaxLength(200).HasColumnType("nvarchar(200)");
+                entity.Property(e => e.DateCreatedUTC).IsRequired().HasColumnType("datetime2").HasDefaultValueSql("GETUTCDATE()");
+                entity.Property(e => e.LatestDateUpdatedUTC).HasColumnType("datetime2");
+
+                entity.HasIndex(e => e.Token).IsUnique();
+                entity.HasIndex(e => e.UserId);
+
+                entity.HasOne(d => d.User)
+                    .WithMany(p => p.RefreshTokens)
+                    .HasForeignKey(d => d.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(d => d.CreatedByUser)
+                    .WithMany(p => p.CreatedRefreshTokens)
+                    .HasForeignKey(d => d.CreatedBy)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(d => d.UpdatedByUser)
+                    .WithMany(p => p.UpdatedRefreshTokens)
                     .HasForeignKey(d => d.LatestUpdatedBy)
                     .OnDelete(DeleteBehavior.Restrict);
             });

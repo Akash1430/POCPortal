@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace EmployeeManagementSystem.Application.DTOs
 {
@@ -13,9 +14,15 @@ namespace EmployeeManagementSystem.Application.DTOs
 
     public class LoginResponseDto
     {
-        public string Token { get; set; } = string.Empty;
-        public DateTime Expiration { get; set; }
+        public string AccessToken { get; set; } = string.Empty;
+        public DateTime AccessTokenExpiration { get; set; }
         public UserDto User { get; set; } = null!;
+        
+        // Properties for cookie handling only - not exposed in API response
+        [JsonIgnore]
+        public string RefreshToken { get; set; } = string.Empty;
+        [JsonIgnore]
+        public DateTime RefreshTokenExpiration { get; set; }
     }
 
     public class UserDto
@@ -32,5 +39,23 @@ namespace EmployeeManagementSystem.Application.DTOs
         public DateTime? LastLoginUTC { get; set; }
     }
 
+    public class RefreshTokenResponseDto
+    {
+        public string AccessToken { get; set; } = string.Empty;
+        public DateTime AccessTokenExpiration { get; set; }
+        
+        // Properties for cookie handling only - not exposed in API response
+        [JsonIgnore]
+        public string RefreshToken { get; set; } = string.Empty;
+        [JsonIgnore]
+        public DateTime RefreshTokenExpiration { get; set; }
+    }
+
+    public class RevokeTokenRequestDto
+    {
+        [Required]
+        public string RefreshToken { get; set; } = string.Empty;
+        public string? Reason { get; set; }
+    }
 
 }

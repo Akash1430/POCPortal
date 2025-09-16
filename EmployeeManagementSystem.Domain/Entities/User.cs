@@ -49,5 +49,8 @@ namespace EmployeeManagementSystem.Domain.Entities
         public virtual ICollection<ModuleAccess> UpdatedModuleAccesses { get; set; } = new List<ModuleAccess>();
         public virtual ICollection<UserRoleAccess> CreatedUserRoleAccesses { get; set; } = new List<UserRoleAccess>();
         public virtual ICollection<UserRoleAccess> UpdatedUserRoleAccesses { get; set; } = new List<UserRoleAccess>();
+        public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+        public virtual ICollection<RefreshToken> CreatedRefreshTokens { get; set; } = new List<RefreshToken>();
+        public virtual ICollection<RefreshToken> UpdatedRefreshTokens { get; set; } = new List<RefreshToken>();
     }
 }

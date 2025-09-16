@@ -19,6 +19,7 @@ namespace EmployeeManagementSystem.Infrastructure.UnitOfWork
             Modules = new Repository<Module>(_context);
             ModuleAccesses = new Repository<ModuleAccess>(_context);
             UserRoleAccesses = new Repository<UserRoleAccess>(_context);
+            RefreshTokens = new Repository<RefreshToken>(_context);
         }
 
         public IRepository<User> Users { get; private set; }
@@ -26,6 +27,7 @@ namespace EmployeeManagementSystem.Infrastructure.UnitOfWork
         public IRepository<Module> Modules { get; private set; }
         public IRepository<ModuleAccess> ModuleAccesses { get; private set; }
         public IRepository<UserRoleAccess> UserRoleAccesses { get; private set; }
+        public IRepository<RefreshToken> RefreshTokens { get; private set; }
 
         public async Task<int> SaveChangesAsync()
         {

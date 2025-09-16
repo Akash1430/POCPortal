@@ -39,7 +39,16 @@ namespace EmployeeManagement.API.Controllers
             if (!result.Success)
                 return Unauthorized(result);
 
-            return Ok(result);
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = result.Data!.RefreshTokenExpiration
+            };
+            Response.Cookies.Append("refreshToken", result.Data.RefreshToken, cookieOptions);
+
+            return Ok(ApiResponse<LoginResponseDto>.SuccessResult(result.Data, result.Message));
         }
 
         /// <summary>
@@ -62,6 +71,88 @@ namespace EmployeeManagement.API.Controllers
             };
 
             return Ok(ApiResponse<object>.SuccessResult(userInfo, "User information retrieved successfully"));
+        }
+
+        /// <summary>
+        /// Refreshes an access token using a valid refresh token from HTTP-only cookie
+        /// </summary>
+        /// <returns>New access token</returns>
+        [HttpPost("refresh-token")]
+        public async Task<ActionResult<ApiResponse<RefreshTokenResponseDto>>> RefreshToken()
+        {
+            if (!Request.Cookies.TryGetValue("refreshToken", out var refreshToken) || string.IsNullOrEmpty(refreshToken))
+            {
+                return Unauthorized(ApiResponse<RefreshTokenResponseDto>.ErrorResult("Refresh token not found"));
+            }
+
+            var result = await _authService.RefreshTokenAsync(refreshToken);
+            
+            if (!result.Success)
+                return Unauthorized(result);
+
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = result.Data!.RefreshTokenExpiration
+            };
+            Response.Cookies.Append("refreshToken", result.Data.RefreshToken, cookieOptions);
+
+            return Ok(ApiResponse<RefreshTokenResponseDto>.SuccessResult(result.Data, result.Message));
+        }
+
+        /// <summary>
+        /// Logs out a user by revoking their refresh token and clearing the cookie
+        /// </summary>
+        /// <returns>Logout confirmation</returns>
+        [HttpPost("logout")]
+        public async Task<ActionResult<ApiResponse<string>>> Logout()
+        {
+            if (Request.Cookies.TryGetValue("refreshToken", out var refreshToken) && !string.IsNullOrEmpty(refreshToken))
+            {
+                await _authService.LogoutAsync(refreshToken);
+            }
+
+            Response.Cookies.Delete("refreshToken");
+
+            return Ok(ApiResponse<string>.SuccessResult("Logged out successfully", "User logged out successfully"));
+        }
+
+        /// <summary>
+        /// Revokes a specific refresh token
+        /// </summary>
+        /// <param name="revokeTokenRequest">Token revocation request</param>
+        /// <returns>Revocation confirmation</returns>
+        [HttpPost("revoke-token")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<string>>> RevokeToken([FromBody] RevokeTokenRequestDto revokeTokenRequest)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+                return BadRequest(ApiResponse<string>.ErrorResult(errors));
+            }
+
+            var result = await _authService.RevokeTokenAsync(revokeTokenRequest);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Revokes all refresh tokens for a specific user (Admin only)
+        /// </summary>
+        /// <param name="userId">User ID whose tokens should be revoked</param>
+        /// <param name="reason">Reason for revocation</param>
+        /// <returns>Revocation confirmation</returns>
+        [HttpPost("revoke-all-tokens/{userId}")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<string>>> RevokeAllUserTokens(int userId, [FromBody] string? reason = null)
+        {
+            var result = await _authService.RevokeAllUserTokensAsync(userId, reason ?? "Revoked by admin");
+            return Ok(result);
         }
     }
 }

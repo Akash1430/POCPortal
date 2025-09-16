@@ -9,6 +9,7 @@ namespace EmployeeManagementSystem.Application.Interfaces
         IRepository<Module> Modules { get; }
         IRepository<ModuleAccess> ModuleAccesses { get; }
         IRepository<UserRoleAccess> UserRoleAccesses { get; }
+        IRepository<RefreshToken> RefreshTokens { get; }
         
         Task<int> SaveChangesAsync();
         Task BeginTransactionAsync();

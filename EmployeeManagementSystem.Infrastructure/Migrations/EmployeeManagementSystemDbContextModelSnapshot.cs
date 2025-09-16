@@ -156,6 +156,73 @@ namespace EmployeeManagementSystem.Infrastructure.Migrations
                     b.ToTable("ModuleAccesses");
                 });
 
+            modelBuilder.Entity("EmployeeManagementSystem.Domain.Entities.RefreshToken", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("DateCreatedUTC")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<DateTime>("ExpiryDateUTC")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRevoked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("LatestDateUpdatedUTC")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("LatestUpdatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReasonRevoked")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ReplacedByToken")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("RevokedByIp")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("RevokedDateUTC")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("LatestUpdatedBy");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RefreshTokens");
+                });
+
             modelBuilder.Entity("EmployeeManagementSystem.Domain.Entities.User", b =>
                 {
                     b.Property<int>("Id")
@@ -386,6 +453,32 @@ namespace EmployeeManagementSystem.Infrastructure.Migrations
                     b.Navigation("UpdatedByUser");
                 });
 
+            modelBuilder.Entity("EmployeeManagementSystem.Domain.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("EmployeeManagementSystem.Domain.Entities.User", "CreatedByUser")
+                        .WithMany("CreatedRefreshTokens")
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EmployeeManagementSystem.Domain.Entities.User", "UpdatedByUser")
+                        .WithMany("UpdatedRefreshTokens")
+                        .HasForeignKey("LatestUpdatedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("EmployeeManagementSystem.Domain.Entities.User", "User")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("UpdatedByUser");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("EmployeeManagementSystem.Domain.Entities.User", b =>
                 {
                     b.HasOne("EmployeeManagementSystem.Domain.Entities.User", "CreatedByUser")
@@ -484,15 +577,21 @@ namespace EmployeeManagementSystem.Infrastructure.Migrations
 
                     b.Navigation("CreatedModules");
 
+                    b.Navigation("CreatedRefreshTokens");
+
                     b.Navigation("CreatedUserRoleAccesses");
 
                     b.Navigation("CreatedUserRoles");
 
                     b.Navigation("CreatedUsers");
 
+                    b.Navigation("RefreshTokens");
+
                     b.Navigation("UpdatedModuleAccesses");
 
                     b.Navigation("UpdatedModules");
+
+                    b.Navigation("UpdatedRefreshTokens");
 
                     b.Navigation("UpdatedUserRoleAccesses");
 

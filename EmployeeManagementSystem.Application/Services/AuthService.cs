@@ -48,7 +48,7 @@ namespace EmployeeManagementSystem.Application.Services
                     return ApiResponse<LoginResponseDto>.ErrorResult("User role not found");
                 }
 
-                var expiration = DateTime.UtcNow.AddSeconds(5); // Token valid for 15 minutes
+                var expiration = DateTime.UtcNow.AddSeconds(15 * 60); // Token valid for 15 minutes
                 var accessToken = GenerateJwtToken(user, userRole, expiration);
 
                 // Generate refresh token

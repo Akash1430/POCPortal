@@ -24,6 +24,9 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Business services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IModuleService, ModuleService>();
+builder.Services.AddScoped<IPermissionService, PermissionService>();
+builder.Services.AddScoped<IFeatureService, FeatureService>();
 
 // Database seeder service
 builder.Services.AddHostedService<DatabaseSeederService>();

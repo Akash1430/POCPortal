@@ -57,4 +57,20 @@ namespace EmployeeManagementSystem.Application.DTOs
         public string? SortBy { get; set; }
         public bool IsDescending { get; set; } = false;
     }
+
+    public class UserPermissionsResponseDto
+    {
+        public List<string> Permissions { get; set; } = new List<string>();
+    }
+
+    public class PermissionCheckRequestDto
+    {
+        public string Permission { get; set; } = string.Empty;
+    }
+
+    public class PermissionCheckResponseDto
+    {
+        public bool HasPermission { get; set; }
+        public string Permission { get; set; } = string.Empty;
+    }
 }

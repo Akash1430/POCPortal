@@ -61,7 +61,6 @@ namespace EmployeeManagementSystem.Application.Services
                     LastName = user.LastName,
                     UserName = user.UserName,
                     Email = user.Email,
-                    RoleName = userRole.RoleName,
                     RoleRefCode = userRole.RefCode,
                     IsFrozen = user.IsFrozen,
                     LastLoginUTC = user.LastLoginUTC
@@ -83,6 +82,84 @@ namespace EmployeeManagementSystem.Application.Services
                 return ApiResponse<LoginResponseDto>.ErrorResult($"Login failed: {ex.Message}");
             }
         }
+
+        public async Task<ApiResponse<RegisterResponseDto>> RegisterAsync(string userName, RegisterRequestDto registerRequest)
+        {
+            try
+            {
+
+                // Business rule: Cannot register SYSADMIN users
+                if (string.Equals(registerRequest.RoleRefCode, "SYSADMIN", StringComparison.OrdinalIgnoreCase))
+                {
+                    return ApiResponse<RegisterResponseDto>.ErrorResult("Cannot register a user with SYSADMIN role");
+                }
+
+                var createdBy = await _unitOfWork.Users.FindFirstAsync(u => u.UserName == userName);
+                if (createdBy == null)
+                {
+                    return ApiResponse<RegisterResponseDto>.ErrorResult("Creator user not found");
+                }
+
+                var createdByUserRole = await _unitOfWork.UserRoles.GetByIdAsync(createdBy.UserRoleId);
+                if (createdByUserRole == null)
+                {
+                    return ApiResponse<RegisterResponseDto>.ErrorResult("Creator role not found");
+                }
+
+                // Business rule: Only SYSADMIN can create USERADMIN users
+                if (string.Equals(registerRequest.RoleRefCode, "USERADMIN", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(createdByUserRole.RefCode, "SYSADMIN", StringComparison.OrdinalIgnoreCase))
+                {
+                    return ApiResponse<RegisterResponseDto>.ErrorResult("Only SYSADMIN users can create USERADMIN users");
+                }
+
+
+                var existingUser = await _unitOfWork.Users.FindFirstAsync(u =>
+                    u.UserName == registerRequest.UserName || u.Email == registerRequest.Email);
+
+                if (existingUser != null)
+                {
+                    return ApiResponse<RegisterResponseDto>.ErrorResult("Username or email already exists");
+                }
+
+                var userRole = await _unitOfWork.UserRoles.FindFirstAsync(ur => ur.RefCode == registerRequest.RoleRefCode);
+                if (userRole == null)
+                {
+                    return ApiResponse<RegisterResponseDto>.ErrorResult("Invalid role reference code");
+                }
+
+                var newUser = new User
+                {
+                    FirstName = registerRequest.FirstName,
+                    LastName = registerRequest.LastName,
+                    UserName = registerRequest.UserName,
+                    Email = registerRequest.Email,
+                    Password = HashPassword(registerRequest.Password),
+                    UserRoleId = userRole.Id,
+                    IsFrozen = false,
+                    CreatedBy = createdBy.Id,
+                    DateCreatedUTC = DateTime.UtcNow
+                };
+
+                await _unitOfWork.Users.AddAsync(newUser);
+                await _unitOfWork.SaveChangesAsync();
+
+                var registerResponse = new RegisterResponseDto
+                {
+                    UserId = newUser.Id,
+                    UserName = newUser.UserName,
+                    Email = newUser.Email,
+                    RoleRefCode = userRole.RefCode
+                };
+
+                return ApiResponse<RegisterResponseDto>.SuccessResult(registerResponse, "Registration successful");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<RegisterResponseDto>.ErrorResult($"Registration failed: {ex.Message}");
+            }
+        }
+
         public string HashPassword(string password)
         {
             return BCrypt.Net.BCrypt.HashPassword(password);
@@ -279,5 +356,436 @@ namespace EmployeeManagementSystem.Application.Services
             rng.GetBytes(randomBytes);
             return Convert.ToBase64String(randomBytes);
         }
+
+        public async Task<ApiResponse<string>> DeleteUserAdminAsync(int userId)
+        {
+            try
+            {
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return ApiResponse<string>.ErrorResult("User not found");
+                }
+
+                var userRole = await _unitOfWork.UserRoles.GetByIdAsync(user.UserRoleId);
+                if (userRole != null && string.Equals(userRole.RefCode, "SYSADMIN", StringComparison.OrdinalIgnoreCase))
+                {
+                    return ApiResponse<string>.ErrorResult("Cannot delete a user with SYSADMIN role");
+                }
+
+                if (userRole != null && !string.Equals(userRole.RefCode, "USERADMIN", StringComparison.OrdinalIgnoreCase))
+                {
+                    return ApiResponse<string>.ErrorResult("Can only delete USERADMIN users via this method");
+                }
+
+                await _unitOfWork.Users.DeleteAsync(user);
+                await _unitOfWork.SaveChangesAsync();
+
+                return ApiResponse<string>.SuccessResult("User deleted successfully", "User has been deleted");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResult($"User deletion failed: {ex.Message}");
+            }
+        }
+
+        public async Task<ApiResponse<string>> DeleteUserAsync(int userId)
+        {
+            try
+            {
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return ApiResponse<string>.ErrorResult("User not found");
+                }
+
+                var userRole = await _unitOfWork.UserRoles.GetByIdAsync(user.UserRoleId);
+                if (userRole != null && string.Equals(userRole.RefCode, "SYSADMIN", StringComparison.OrdinalIgnoreCase))
+                {
+                    return ApiResponse<string>.ErrorResult("Cannot delete a user with SYSADMIN role");
+                }
+
+                await _unitOfWork.Users.DeleteAsync(user);
+                await _unitOfWork.SaveChangesAsync();
+
+                return ApiResponse<string>.SuccessResult("User deleted successfully", "User has been deleted");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResult($"User deletion failed: {ex.Message}");
+            }
+        }
+
+        public async Task<ApiResponse<GetUsersResponseDto>> GetAllUsersAsync(GetUsersRequestDto request)
+        {
+            try
+            {
+                if (request.RoleRefs == null || request.RoleRefs.Length == 0)
+                {
+                    return new ApiResponse<GetUsersResponseDto>
+                    {
+                        Success = false,
+                        Message = "RoleRefs cannot be empty."
+                    };
+                }
+
+                var userRole = await _unitOfWork.UserRoles.FindAsync(ur => request.RoleRefs.Contains(ur.RefCode));
+                if (userRole == null || !userRole.Any())
+                {
+                    return new ApiResponse<GetUsersResponseDto>
+                    {
+                        Success = false,
+                        Message = "No valid user roles found for the provided RoleRefs."
+                    };
+                }
+
+                var roleIds = userRole.Select(ur => ur.Id).ToList();
+                var searchTerm = request.SearchTerm?.Trim();
+                var searchIsEmpty = string.IsNullOrWhiteSpace(searchTerm);
+                var searchLower = searchTerm?.ToLower() ?? string.Empty;
+
+                var users = await _unitOfWork.Users.FindAsync(u =>
+                    roleIds.Contains(u.UserRoleId) &&
+                    (searchIsEmpty ||
+                     (
+                        (u.FirstName + " " + u.LastName).ToLower().Contains(searchLower) ||
+                        u.UserName.ToLower().Contains(searchLower) ||
+                        u.Email.ToLower().Contains(searchLower)
+                     )
+                    )
+                );
+
+                if (users == null || !users.Any())
+                {
+                    return new ApiResponse<GetUsersResponseDto>
+                    {
+                        Success = true,
+                        Data = new GetUsersResponseDto
+                        {
+                            Users = new List<UserDto>()
+                        }
+                    };
+                }
+
+                var userDtos = users
+                    .Skip((request.PageNumber - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .Select(u => new UserDto
+                    {
+                        Id = u.Id,
+                        FirstName = u.FirstName,
+                        LastName = u.LastName,
+                        UserName = u.UserName,
+                        Email = u.Email,
+                        RoleRefCode = userRole.FirstOrDefault(ur => ur.Id == u.UserRoleId)?.RefCode ?? string.Empty,
+                        IsFrozen = u.IsFrozen,
+                        LastLoginUTC = u.LastLoginUTC
+                    })
+                    .ToList();
+
+                return new ApiResponse<GetUsersResponseDto>
+                {
+                    Success = true,
+                    Data = new GetUsersResponseDto
+                    {
+                        Users = userDtos,
+                        TotalCount = users.Count(),
+                        PageNumber = request.PageNumber,
+                        PageSize = request.PageSize
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<GetUsersResponseDto>
+                {
+                    Success = false,
+                    Message = $"An error occurred while retrieving users: {ex.Message}"
+                };
+            }
+        }
+
+        public async Task<ApiResponse<UserDto>> UpdateUserAsync(int userId, UpdateUserRequestDto updateRequest, string updatedBy)
+        {
+            try
+            {
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return ApiResponse<UserDto>.ErrorResult("User not found");
+                }
+
+                // Check if email is already taken by another user
+                var existingUserWithEmail = await _unitOfWork.Users.FindFirstAsync(u =>
+                    u.Email == updateRequest.Email && u.Id != userId);
+                if (existingUserWithEmail != null)
+                {
+                    return ApiResponse<UserDto>.ErrorResult("Email address is already in use by another user");
+                }
+
+                // Update user fields
+                user.FirstName = updateRequest.FirstName;
+                user.LastName = updateRequest.LastName;
+                user.Email = updateRequest.Email;
+                user.LatestDateUpdatedUTC = DateTime.UtcNow;
+
+                // Set LatestUpdatedBy if the user entity has this field
+                if (!string.IsNullOrEmpty(updatedBy))
+                {
+                    var updatedByUser = await _unitOfWork.Users.FindFirstAsync(u => u.UserName == updatedBy);
+                    if (updatedByUser != null)
+                    {
+                        user.LatestUpdatedBy = updatedByUser.Id;
+                    }
+                }
+
+                // Update role if provided and user is not SYSADMIN
+                if (!string.IsNullOrEmpty(updateRequest.RoleRefCode))
+                {
+                    var currentUserRole = await _unitOfWork.UserRoles.GetByIdAsync(user.UserRoleId);
+                    if (currentUserRole?.RefCode == "SYSADMIN")
+                    {
+                        return ApiResponse<UserDto>.ErrorResult("Cannot change role of SYSADMIN user");
+                    }
+
+                    var newRole = await _unitOfWork.UserRoles.FindFirstAsync(r => r.RefCode == updateRequest.RoleRefCode);
+                    if (newRole == null)
+                    {
+                        return ApiResponse<UserDto>.ErrorResult("Invalid role specified");
+                    }
+
+                    if (newRole.RefCode == "SYSADMIN")
+                    {
+                        return ApiResponse<UserDto>.ErrorResult("Cannot assign SYSADMIN role");
+                    }
+
+                    user.UserRoleId = newRole.Id;
+                }
+
+                await _unitOfWork.Users.UpdateAsync(user);
+                await _unitOfWork.SaveChangesAsync();
+
+                // Get updated user with role info
+                var updatedUserRole = await _unitOfWork.UserRoles.GetByIdAsync(user.UserRoleId);
+
+                var userDto = new UserDto
+                {
+                    Id = user.Id,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    UserName = user.UserName,
+                    Email = user.Email,
+                    RoleRefCode = updatedUserRole?.RefCode ?? string.Empty,
+                    IsFrozen = user.IsFrozen,
+                    LastLoginUTC = user.LastLoginUTC
+                };
+
+                return ApiResponse<UserDto>.SuccessResult(userDto, "User updated successfully");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<UserDto>.ErrorResult($"An error occurred while updating user: {ex.Message}");
+            }
+        }
+
+        public async Task<ApiResponse<UserDto>> FreezeUnfreezeUserAsync(int userId, FreezeUserRequestDto freezeRequest, string updatedBy)
+        {
+            try
+            {
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return ApiResponse<UserDto>.ErrorResult("User not found");
+                }
+
+                // Prevent freezing SYSADMIN users
+                var userRole = await _unitOfWork.UserRoles.GetByIdAsync(user.UserRoleId);
+                if (userRole?.RefCode == "SYSADMIN")
+                {
+                    return ApiResponse<UserDto>.ErrorResult("Cannot freeze/unfreeze SYSADMIN users");
+                }
+
+                user.IsFrozen = freezeRequest.IsFrozen;
+                user.LatestDateUpdatedUTC = DateTime.UtcNow;
+
+                // Set LatestUpdatedBy if the user entity has this field
+                if (!string.IsNullOrEmpty(updatedBy))
+                {
+                    var updatedByUser = await _unitOfWork.Users.FindFirstAsync(u => u.UserName == updatedBy);
+                    if (updatedByUser != null)
+                    {
+                        user.LatestUpdatedBy = updatedByUser.Id;
+                    }
+                }
+
+                await _unitOfWork.Users.UpdateAsync(user);
+                await _unitOfWork.SaveChangesAsync();
+
+                // If freezing user, revoke all their tokens
+                if (freezeRequest.IsFrozen)
+                {
+                    await RevokeAllUserTokensAsync(userId, $"User account frozen by {updatedBy}");
+                }
+
+                var userDto = new UserDto
+                {
+                    Id = user.Id,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    UserName = user.UserName,
+                    Email = user.Email,
+                    RoleRefCode = userRole?.RefCode ?? string.Empty,
+                    IsFrozen = user.IsFrozen,
+                    LastLoginUTC = user.LastLoginUTC
+                };
+
+                var message = freezeRequest.IsFrozen ? "User frozen successfully" : "User unfrozen successfully";
+                return ApiResponse<UserDto>.SuccessResult(userDto, message);
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<UserDto>.ErrorResult($"An error occurred while updating user status: {ex.Message}");
+            }
+        }
+
+        public async Task<ApiResponse<UserDto>> GetUserByIdAsync(int userId)
+        {
+            try
+            {
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return ApiResponse<UserDto>.ErrorResult("User not found");
+                }
+
+                var userRole = await _unitOfWork.UserRoles.GetByIdAsync(user.UserRoleId);
+
+                if (userRole == null)
+                {
+                    return ApiResponse<UserDto>.ErrorResult("User role not found");
+                }
+
+                if (string.Equals(userRole.RefCode, "SYSADMIN", StringComparison.OrdinalIgnoreCase))
+                {
+                    return ApiResponse<UserDto>.ErrorResult("Access to SYSADMIN user details is restricted");
+                }
+
+                var userDto = new UserDto
+                {
+                    Id = user.Id,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    UserName = user.UserName,
+                    Email = user.Email,
+                    RoleRefCode = userRole?.RefCode ?? string.Empty,
+                    IsFrozen = user.IsFrozen,
+                    LastLoginUTC = user.LastLoginUTC
+                };
+
+                return ApiResponse<UserDto>.SuccessResult(userDto, "User retrieved successfully");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<UserDto>.ErrorResult($"Failed to retrieve user: {ex.Message}");
+            }
+        }
+
+        public async Task<ApiResponse<string>> ChangePasswordAsync(string userName, ChangePasswordRequestDto changePasswordRequest)
+        {
+            try
+            {
+                var user = await _unitOfWork.Users.FindFirstAsync(u => u.UserName == userName);
+                if (user == null)
+                {
+                    return ApiResponse<string>.ErrorResult("User not found");
+                }
+
+                if (user.IsFrozen)
+                {
+                    return ApiResponse<string>.ErrorResult("Account is frozen. Password cannot be changed");
+                }
+
+                // Verify current password
+                if (!VerifyPassword(changePasswordRequest.CurrentPassword, user.Password))
+                {
+                    return ApiResponse<string>.ErrorResult("Current password is incorrect");
+                }
+
+                // Hash and update new password
+                user.Password = HashPassword(changePasswordRequest.NewPassword);
+                user.LatestUpdatedBy = user.Id; // Self-update
+                user.LatestDateUpdatedUTC = DateTime.UtcNow;
+
+                await _unitOfWork.Users.UpdateAsync(user);
+                await _unitOfWork.SaveChangesAsync();
+
+                // Revoke all existing refresh tokens for security
+                await RevokeAllUserTokensAsync(user.Id, "Password changed - security measure");
+
+                return ApiResponse<string>.SuccessResult("Password changed successfully", "Your password has been updated. Please log in again.");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResult($"Password change failed: {ex.Message}");
+            }
+        }
+
+        public async Task<ApiResponse<string>> AdminChangePasswordAsync(int userId, AdminChangePasswordRequestDto changePasswordRequest, string changedBy)
+        {
+            try
+            {
+                var user = await _unitOfWork.Users.GetByIdAsync(userId);
+                if (user == null)
+                {
+                    return ApiResponse<string>.ErrorResult("User not found");
+                }
+
+                var userRole = await _unitOfWork.UserRoles.GetByIdAsync(user.UserRoleId);
+                if (userRole != null && string.Equals(userRole.RefCode, "SYSADMIN", StringComparison.OrdinalIgnoreCase))
+                {
+                    return ApiResponse<string>.ErrorResult("Cannot change password for SYSADMIN users");
+                }
+
+                // Get the admin user making the change
+                var adminUser = await _unitOfWork.Users.FindFirstAsync(u => u.UserName == changedBy);
+                if (adminUser == null)
+                {
+                    return ApiResponse<string>.ErrorResult("Admin user not found");
+                }
+
+                var adminRole = await _unitOfWork.UserRoles.GetByIdAsync(adminUser.UserRoleId);
+                if (adminRole == null)
+                {
+                    return ApiResponse<string>.ErrorResult("Admin role not found");
+                }
+
+                // Business rule: Only SYSADMIN and USERADMIN can change passwords
+                if (!string.Equals(adminRole.RefCode, "SYSADMIN", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(adminRole.RefCode, "USERADMIN", StringComparison.OrdinalIgnoreCase))
+                {
+                    return ApiResponse<string>.ErrorResult("Insufficient privileges to change user passwords");
+                }
+
+                // Hash and update new password
+                user.Password = HashPassword(changePasswordRequest.NewPassword);
+                user.LatestUpdatedBy = adminUser.Id;
+                user.LatestDateUpdatedUTC = DateTime.UtcNow;
+
+                await _unitOfWork.Users.UpdateAsync(user);
+                await _unitOfWork.SaveChangesAsync();
+
+                // Revoke all existing refresh tokens for security
+                await RevokeAllUserTokensAsync(user.Id, $"Password changed by admin: {changedBy}");
+
+                return ApiResponse<string>.SuccessResult("Password changed successfully", $"Password for user {user.UserName} has been updated by admin.");
+            }
+            catch (Exception ex)
+            {
+                return ApiResponse<string>.ErrorResult($"Admin password change failed: {ex.Message}");
+            }
+        }
     }
 }
+
+
+

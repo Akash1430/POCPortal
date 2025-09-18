@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using EmployeeManagementSystem.Application.Interfaces;
 using EmployeeManagementSystem.Application.DTOs;
+using EmployeeManagementSystem.Application.Attributes;
 using System.Security.Claims;
 
 namespace EmployeeManagement.API.Controllers
@@ -153,6 +154,60 @@ namespace EmployeeManagement.API.Controllers
         {
             var result = await _authService.RevokeAllUserTokensAsync(userId, reason ?? "Revoked by admin");
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Changes the current user's password
+        /// </summary>
+        /// <param name="changePasswordRequest">Password change request with current and new password</param>
+        /// <returns>Password change confirmation</returns>
+        [HttpPost("change-password")]
+        [RequirePermission("USER_CHANGE_PASSWORD")]
+        public async Task<ActionResult<ApiResponse<string>>> ChangePassword([FromBody] ChangePasswordRequestDto changePasswordRequest)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+                return BadRequest(ApiResponse<string>.ErrorResult(errors));
+            }
+
+            var userName = User.Identity!.Name!;
+            var result = await _authService.ChangePasswordAsync(userName, changePasswordRequest);
+            
+            if (!result.Success)
+                return BadRequest(result);
+
+            Response.Cookies.Delete("refreshToken");
+            
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Admin endpoint to change another user's password
+        /// </summary>
+        /// <param name="userId">User ID whose password should be changed</param>
+        /// <param name="changePasswordRequest">New password details</param>
+        /// <returns>Password change confirmation</returns>
+        [HttpPost("admin-change-password/{userId}")]
+        [RequirePermission("ADMIN_CHANGE_PASSWORD")]
+        public async Task<ActionResult<ApiResponse<string>>> AdminChangePassword(int userId, [FromBody] AdminChangePasswordRequestDto changePasswordRequest)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+                return BadRequest(ApiResponse<string>.ErrorResult(errors));
+            }
+
+            var adminUserName = User.Identity!.Name!;
+            var result = await _authService.AdminChangePasswordAsync(userId, changePasswordRequest, adminUserName);
+            
+            return result.Success ? Ok(result) : BadRequest(result);
         }
     }
 }

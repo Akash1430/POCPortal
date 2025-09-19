@@ -38,7 +38,6 @@ namespace EmployeeManagementSystem.Application.DTOs
 
     public class UpdateRolePermissionsRequestDto
     {
-        public int RoleId { get; set; }
         public List<int> PermissionIds { get; set; } = new List<int>();
     }
 

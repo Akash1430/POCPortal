@@ -81,12 +81,17 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Employee Management System API",
         Version = "v1",
-        Description = "A Employee Management System with role-based access control",
+        Description = "API for managing employees, roles, permissions, and modules in an organization.",
         Contact = new OpenApiContact
         {
             Name = "Team Aegis"
         }
     });
+
+    // Include XML documentation
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    c.IncludeXmlComments(xmlPath);
 
     // Add JWT authentication to Swagger
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -117,15 +122,14 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
-// Configure Swagger for all environments (can be restricted later)
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Employee Management API v1");
-        c.RoutePrefix = "swagger"; // Access at /swagger
-        c.DocumentTitle = "Employee Management API";
+        c.RoutePrefix = "swagger";
+        c.DocumentTitle = "Employee Management API Documentation";
     });
 }
 

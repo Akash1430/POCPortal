@@ -13,6 +13,39 @@ namespace EmployeeManagementSystem.Application.Services
             _unitOfWork = unitOfWork;
         }
 
+        public async Task<ApiResponse<GetModulesWithPermissionsResponseDto>> GetAllModulesWithPermissionsAsync()
+        {
+            try
+            {
+                var allModules = await _unitOfWork.Modules.GetAllAsync();
+                var allPermissions = await _unitOfWork.ModuleAccesses.FindAsync(pa => pa.IsVisible);
+
+                var modulePermissionTree = BuildModulePermissionTree(allModules, allPermissions);
+
+                // remove modules with no permissions
+                modulePermissionTree = modulePermissionTree.Where(m => m.Permissions != null && m.Permissions.Count > 0).ToList();
+
+                return new ApiResponse<GetModulesWithPermissionsResponseDto>
+                {
+                    Success = true,
+                    Message = "All modules with permissions retrieved successfully.",
+                    Data = new GetModulesWithPermissionsResponseDto
+                    {
+                        Modules = modulePermissionTree
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                return new ApiResponse<GetModulesWithPermissionsResponseDto>
+                {
+                    Success = false,
+                    Message = $"An error occurred while retrieving all modules with permissions: {ex.Message}",
+                    Data = null
+                };
+            }
+        }
+
         public async Task<ApiResponse<ModulesResponseDto>> GetModulesAsync(string userRoleRefCode)
         {
             try
@@ -85,6 +118,68 @@ namespace EmployeeManagementSystem.Application.Services
         }
 
 
+        // Helper methods
+        private List<ModuleWithPermissionsDto> BuildModulePermissionTree(IEnumerable<Module> modules, IEnumerable<ModuleAccess> permissions)
+        {
+            var modulePermissionTree = new List<ModuleWithPermissionsDto>();
+            foreach (var module in modules)
+            {
+                var moduleDto = new ModuleWithPermissionsDto
+                {
+                    Id = module.Id,
+                    ModuleName = module.ModuleName,
+                    RefCode = module.RefCode,
+                    Permissions = GetModulePermissions(module.Id, permissions)
+                };
+
+                modulePermissionTree.Add(moduleDto);
+            }
+            return modulePermissionTree;
+        }
+        private List<ModulePermissionTreeDto> GetModulePermissions(int moduleId, IEnumerable<ModuleAccess> permissions)
+        {
+            var permissionTree = new List<ModulePermissionTreeDto>();
+            var rootPermissions = permissions.Where(p => p.ModuleId == moduleId && p.ParentId == null).OrderBy(p => p.Id);
+
+            foreach (var permission in rootPermissions)
+            {
+                var permissionDto = new ModulePermissionTreeDto
+                {
+                    Id = permission.Id,
+                    PermissionName = permission.ModuleAccessName,
+                    ParentId = permission.ParentId,
+                    RefCode = permission.RefCode,
+                    Description = permission.Description,
+                    SubPermissions = GetChildModulePermissions(permission.Id, permissions)
+                };
+
+                permissionTree.Add(permissionDto);
+            }
+
+            return permissionTree;
+        }
+        private List<ModulePermissionTreeDto> GetChildModulePermissions(int parentId, IEnumerable<ModuleAccess> permissions)
+        {
+            var childPermissions = new List<ModulePermissionTreeDto>();
+            var children = permissions.Where(p => p.ParentId == parentId).OrderBy(p => p.Id);
+
+            foreach (var child in children)
+            {
+                var childDto = new ModulePermissionTreeDto
+                {
+                    Id = child.Id,
+                    PermissionName = child.ModuleAccessName,
+                    ParentId = child.ParentId,
+                    RefCode = child.RefCode,
+                    Description = child.Description,
+                    SubPermissions = GetChildModulePermissions(child.Id, permissions)
+                };
+
+                childPermissions.Add(childDto);
+            }
+
+            return childPermissions;
+        }
         private List<ModuleResponseDto> BuildModuleTree(IEnumerable<Module> modules)
         {
             if (modules == null) return new List<ModuleResponseDto>();

@@ -1,0 +1,257 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>WebApi</name>
+    </assembly>
+    <members>
+        <member name="M:WebApi.Controllers.AuthController.Login(Dtos.LoginRequestDto)">
+            <summary>
+            Authenticates a user and returns a JWT token
+            </summary>
+            <remarks>
+            Authenticates a user with username and password, returns JWT access token and sets refresh token in HTTP-only cookie.
+            </remarks>
+            <param name="loginRequest">User login credentials</param>
+            <returns>JWT token and user information</returns>
+        </member>
+        <member name="M:WebApi.Controllers.AuthController.GetCurrentUser">
+            <summary>
+            Gets current user information from JWT token
+            </summary>
+            <remarks>
+            Retrieves information about the currently authenticated user.
+            </remarks>
+            <returns>Current user information</returns>
+        </member>
+        <member name="M:WebApi.Controllers.AuthController.RefreshToken">
+            <summary>
+            Refreshes an access token using a valid refresh token from HTTP-only cookie
+            </summary>
+            <remarks>
+            Generates a new access token using the refresh token stored in HTTP-only cookie. 
+            Also updates the refresh token cookie with a new one.
+            The refresh token must be present in the request cookies.
+            </remarks>
+            <returns>New access token</returns>
+        </member>
+        <member name="M:WebApi.Controllers.AuthController.Logout">
+            <summary>
+            Logs out a user by revoking their refresh token and clearing the cookie
+            </summary>
+            <remarks>
+            Logs out the user by revoking their refresh token from the database and clearing the HTTP-only cookie.
+            This endpoint can be called even without authentication.
+            </remarks>
+            <returns>Logout confirmation</returns>
+        </member>
+        <member name="M:WebApi.Controllers.AuthController.RevokeToken(Dtos.RevokeTokenRequestDto)">
+            <summary>
+            Revokes a specific refresh token
+            </summary>
+            <remarks>
+            Revokes a specific refresh token provided in the request body.
+            Requires authentication.
+            </remarks>
+            <param name="revokeTokenRequest">Token revocation request</param>
+            <returns>Revocation confirmation</returns>
+        </member>
+        <member name="M:WebApi.Controllers.AuthController.RevokeAllUserTokens(System.Int32,System.String)">
+            <summary>
+            Revokes all refresh tokens for a specific user (Admin only)
+            </summary>
+            <remarks>
+            Revokes all refresh tokens for a specific user. This is an admin-only operation.
+            Requires authentication and appropriate permissions.
+            </remarks>
+            <param name="userId">User ID whose tokens should be revoked</param>
+            <param name="reason">Reason for revocation</param>
+            <returns>Revocation confirmation</returns>
+        </member>
+        <member name="M:WebApi.Controllers.AuthController.ChangePassword(Dtos.ChangePasswordRequestDto)">
+            <summary>
+            Changes the current user's password
+            </summary>
+            <remarks>
+            Changes the password for the currently authenticated user.
+            Requires the USER_CHANGE_PASSWORD permission.
+            All refresh tokens will be revoked after successful password change.
+            </remarks>
+            <param name="changePasswordRequest">Password change request with current and new password</param>
+            <returns>Password change confirmation</returns>
+        </member>
+        <member name="M:WebApi.Controllers.AuthController.AdminChangePassword(System.Int32,Dtos.AdminChangePasswordRequestDto)">
+            <summary>
+            Admin endpoint to change another user's password
+            </summary>
+            <remarks>
+            Allows administrators to change another user's password.
+            Requires the ADMIN_CHANGE_PASSWORD permission.
+            The target user's refresh tokens will be revoked after successful password change.
+            </remarks>
+            <param name="userId">User ID whose password should be changed</param>
+            <param name="changePasswordRequest">New password details</param>
+            <returns>Password change confirmation</returns>
+        </member>
+        <member name="M:WebApi.Controllers.FeaturesController.GetAllRolesWithPermissions">
+            <summary>
+            Retrieves all roles and their associated permissions
+            </summary>
+            <remarks>
+            Gets a comprehensive list of all roles in the system along with their assigned permissions.
+            Permissions are organized in a hierarchical tree structure.
+            Requires FEATURES_READ_ROLES permission.
+            </remarks>
+            <returns>List of all roles with their permissions</returns>
+        </member>
+        <member name="M:WebApi.Controllers.FeaturesController.GetRoleWithPermissions(System.Int32)">
+            <summary>
+            Retrieves a specific role and its permissions
+            </summary>
+            <remarks>
+            Gets detailed information about a specific role including all its assigned permissions.
+            Permissions are organized in a hierarchical tree structure.
+            Requires FEATURES_READ_ROLES permission.
+            </remarks>
+            <param name="roleId">The unique identifier of the role to retrieve</param>
+            <returns>Role information with permissions</returns>
+        </member>
+        <member name="M:WebApi.Controllers.FeaturesController.GetAllPermissions">
+            <summary>
+            Retrieves all available permissions in the system
+            </summary>
+            <remarks>
+            Gets a comprehensive list of all permissions available in the system.
+            Permissions are organized in a hierarchical tree structure by module.
+            Requires FEATURES_READ_PERMISSIONS permission.
+            </remarks>
+            <returns>List of all available permissions in hierarchical structure</returns>
+        </member>
+        <member name="M:WebApi.Controllers.FeaturesController.UpdateRolePermissions(System.Int32,Dtos.UpdateUserRoleModuleAccessesRequestDto)">
+            <summary>
+            Updates the permissions assigned to a specific role
+            </summary>
+            <remarks>
+            Updates the list of permissions assigned to a specific role.
+            This operation replaces all existing permissions for the role with the new list.
+            Requires FEATURES_UPDATE_ROLE_PERMISSIONS permission.
+            </remarks>
+            <param name="roleId">The unique identifier of the role to update</param>
+            <param name="request">List of permission IDs to assign to the role</param>
+            <returns>Updated role permissions information</returns>
+        </member>
+        <member name="M:WebApi.Controllers.ModuleController.GetModules">
+            <summary>
+            Retrieves modules accessible to the current user
+            </summary>
+            <remarks>
+            Gets a list of modules that the current user has access to based on their role.
+            Modules are returned in a hierarchical structure with parent and child modules.
+            Requires MODULE_READ permission.
+            </remarks>
+            <returns>List of accessible modules in hierarchical structure</returns>
+        </member>
+        <member name="M:WebApi.Controllers.ModuleController.GetAllModulesWithPermissions">
+            <summary>
+            Retrieves all modules with their associated permissions (Admin only)
+            </summary>
+            <remarks>
+            Gets a comprehensive list of all modules in the system along with their associated permissions.
+            This endpoint is restricted to users with the SYSADMIN role only.
+            Returns detailed permission trees for each module.
+            </remarks>
+            <returns>List of all modules with their permission trees</returns>
+        </member>
+        <member name="M:WebApi.Controllers.PermissionController.GetMyPermissions">
+            <summary>
+            Retrieves the current user's permissions
+            </summary>
+            <remarks>
+            Gets a list of all permissions assigned to the currently authenticated user based on their role.
+            Returns permission reference codes as an array of strings.
+            Requires authentication.
+            </remarks>
+            <returns>List of current user's permissions</returns>
+        </member>
+        <member name="M:WebApi.Controllers.PermissionController.CheckPermission(Dtos.PermissionCheckRequestDto)">
+            <summary>
+            Checks if the current user has a specific permission
+            </summary>
+            <remarks>
+            Verifies whether the currently authenticated user has a specific permission.
+            Returns a boolean result indicating if the user has the requested permission.
+            Requires authentication.
+            </remarks>
+            <param name="request">Permission check request containing the permission to verify</param>
+            <returns>Permission check result</returns>
+        </member>
+        <member name="M:WebApi.Controllers.UserAdminController.GetAdminById(System.Int32)">
+            <summary>
+            Retrieves a specific user by their ID
+            </summary>
+            <remarks>
+            Gets detailed information about a specific user by their unique identifier.
+            Requires ADMIN_READ permission.
+            </remarks>
+            <param name="userId">The unique identifier of the user to retrieve</param>
+            <returns>User information</returns>
+        </member>
+        <member name="M:WebApi.Controllers.UserAdminController.GetAllAdmins(Dtos.UsersRequestDto)">
+            <summary>
+            Retrieves a paginated list of all admin users
+            </summary>
+            <remarks>
+            Gets a paginated list of all users with admin roles, with optional search and filtering.
+            Requires ADMIN_READ permission.
+            </remarks>
+            <param name="request">Pagination and search parameters</param>
+            <returns>Paginated list of admin users</returns>
+        </member>
+        <member name="M:WebApi.Controllers.UserAdminController.CreateAdmin(Dtos.RegisterRequestDto)">
+            <summary>
+            Creates a new admin user
+            </summary>
+            <remarks>
+            Creates a new user with admin role (USERADMIN).
+            Requires ADMIN_CREATE permission.
+            </remarks>
+            <param name="userDto">User creation details</param>
+            <returns>Created user information</returns>
+        </member>
+        <member name="M:WebApi.Controllers.UserAdminController.DeleteUserAdmin(System.Int32)">
+            <summary>
+            Deletes an admin user account
+            </summary>
+            <remarks>
+            Permanently deletes an admin user account from the system.
+            Requires ADMIN_DELETE permission.
+            </remarks>
+            <param name="userId">The unique identifier of the user to delete</param>
+            <returns>Deletion confirmation</returns>
+        </member>
+        <member name="M:WebApi.Controllers.UserAdminController.UpdateAdmin(System.Int32,Dtos.UpdateUserRequestDto)">
+            <summary>
+            Updates an existing admin user's information
+            </summary>
+            <remarks>
+            Updates the profile information of an existing admin user.
+            Requires ADMIN_UPDATE permission.
+            </remarks>
+            <param name="userId">The unique identifier of the user to update</param>
+            <param name="updateRequest">Updated user information</param>
+            <returns>Updated user information</returns>
+        </member>
+        <member name="M:WebApi.Controllers.UserAdminController.FreezeUnfreezeAdmin(System.Int32,Dtos.FreezeUserRequestDto)">
+            <summary>
+            Freezes or unfreezes an admin user account
+            </summary>
+            <remarks>
+            Changes the frozen status of an admin user account.
+            Frozen users cannot log in to the system.
+            Requires ADMIN_UPDATE permission.
+            </remarks>
+            <param name="userId">The unique identifier of the user to freeze/unfreeze</param>
+            <param name="freezeRequest">Freeze status request</param>
+            <returns>Updated user information</returns>
+        </member>
+    </members>
+</doc>

@@ -5,6 +5,7 @@ using Dtos;
 using Core.Auth;
 using Core.User;
 using Models.Constants;
+using System.Security.Claims;
 
 namespace WebApi.Controllers;
 
@@ -97,7 +98,8 @@ public class UserAdminController : ControllerBase
         }
 
         userDto.RoleRefCode = UserRoles.USERADMIN;
-        var response = await _authLogic.RegisterAsync(User.Identity!.Name!, userDto.ToModel());
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var response = await _authLogic.RegisterAsync(userId, userDto.ToModel());
         if (response.Success && response.Data != null)
         {
             return Ok(ApiResponse<RegisterResponseDto>.SuccessResult(response.Data.ToDto(), response.Message));
@@ -151,7 +153,8 @@ public class UserAdminController : ControllerBase
             return BadRequest(ApiResponse<UserDto>.ErrorResult(errors));
         }
 
-        var response = await _authLogic.UpdateUserAsync(userId, updateRequest.ToModel(), User.Identity!.Name!);
+        var updatedBy = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var response = await _authLogic.UpdateUserAsync(userId, updateRequest.ToModel(), updatedBy);
         if (response.Success && response.Data != null)
         {
             return Ok(ApiResponse<UserDto>.SuccessResult(response.Data.ToDto(), "User updated successfully"));
@@ -183,7 +186,8 @@ public class UserAdminController : ControllerBase
             return BadRequest(ApiResponse<UserDto>.ErrorResult(errors));
         }
 
-        var response = await _authLogic.FreezeUnfreezeUserAsync(userId, freezeRequest.ToModel(), User.Identity!.Name!);
+        var updatedBy = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var response = await _authLogic.FreezeUnfreezeUserAsync(userId, freezeRequest.ToModel(), updatedBy);
         if (response.Success && response.Data != null)
         {
             return Ok(ApiResponse<UserDto>.SuccessResult(response.Data.ToDto(), "User freeze status updated successfully"));

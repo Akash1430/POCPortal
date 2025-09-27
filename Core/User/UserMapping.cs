@@ -38,8 +38,13 @@ public static class UserMapping
             LastName = model.LastName,
             UserName = model.UserName,
             Email = model.Email,
+            RoleRefCode = model.RoleRefCode,
             IsFrozen = model.IsFrozen,
-            LastLoginUTC = model.LastLoginUTC
+            LastLoginUTC = model.LastLoginUTC,
+            DateCreatedUTC = model.DateCreatedUTC,
+            LatestDateUpdatedUTC = model.LatestDateUpdatedUTC,
+            CreatedBy = model.CreatedBy,
+            LatestUpdatedBy = model.LatestUpdatedBy
         };
     }
 
@@ -54,7 +59,9 @@ public static class UserMapping
             LastName = model.LastName,
             UserName = model.UserName,
             Email = model.Email,
-            Role = model.RoleRefCode
+            Role = model.RoleRefCode,
+            PasswordChangedUTC = model.PasswordChangedUTC,
+            LastLoginUTC = model.LastLoginUTC
         };
     }
 
@@ -100,9 +107,11 @@ public static class UserMapping
 
         return new UpdateUserRequestModel
         {
+            UserName = dto.UserName,
             FirstName = dto.FirstName,
             LastName = dto.LastName,
-            Email = dto.Email
+            Email = dto.Email,
+            RoleRefCode = dto.RoleRefCode
         };
     }
 

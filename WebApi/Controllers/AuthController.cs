@@ -42,7 +42,7 @@ public class AuthController : ControllerBase
         }
 
         var result = await _authLogic.LoginAsync(loginRequest.ToModel());
-        
+
         if (!result.Success)
             return Unauthorized(result);
 
@@ -69,18 +69,50 @@ public class AuthController : ControllerBase
     [Authorize]
     public async Task<ActionResult<ApiResponse<MeDto>>> GetCurrentUser()
     {
-        var userName = User.FindFirstValue(ClaimTypes.Name);
-        if (string.IsNullOrEmpty(userName))
-        {
-            return Unauthorized(ApiResponse<MeDto>.ErrorResult("User is not authenticated"));
-        }
-
-        var result = await _authLogic.GetCurrentUserAsync(userName);
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var result = await _authLogic.GetCurrentUserAsync(userId);
 
         if (!result.Success || result.Data == null)
             return NotFound(result);
 
         return Ok(ApiResponse<MeDto>.SuccessResult(result.Data.ToMeDto(), result.Message));
+    }
+
+    /// <summary>
+    /// Updates the current user's profile information
+    /// </summary>
+    /// <remarks>
+    /// Allows the authenticated user to update their own profile details, such as name, email, etc.
+    /// The user's role cannot be changed using this endpoint. Omit the RoleRefCode field or set it to null.
+    /// </remarks>
+    /// <param name="updateRequest">Profile update request containing new user details</param>
+    /// <returns>Updated user information</returns>
+    [HttpPut("me")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<UserDto>>> UpdateCurrentUser([FromBody] UpdateUserRequestDto updateRequest)
+    {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+            return BadRequest(ApiResponse<UserDto>.ErrorResult(errors));
+        }
+
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        if (updateRequest.RoleRefCode != null)
+        {
+            return BadRequest(ApiResponse<UserDto>.ErrorResult("Cannot change role of the current user"));
+        }
+
+        var result = await _authLogic.UpdateUserAsync(userId, updateRequest.ToModel(), userId);
+
+        if (!result.Success || result.Data == null)
+            return BadRequest(result);
+
+        return Ok(ApiResponse<UserDto>.SuccessResult(result.Data.ToDto(), result.Message));
     }
 
     /// <summary>
@@ -101,7 +133,7 @@ public class AuthController : ControllerBase
         }
 
         var result = await _authLogic.RefreshTokenAsync(refreshToken);
-        
+
         if (!result.Success)
             return Unauthorized(result);
 
@@ -205,14 +237,14 @@ public class AuthController : ControllerBase
             return BadRequest(ApiResponse<string>.ErrorResult(errors));
         }
 
-        var userName = User.Identity!.Name!;
-        var result = await _authLogic.ChangePasswordAsync(userName, changePasswordRequest.ToModel());
-        
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var result = await _authLogic.ChangePasswordAsync(userId, changePasswordRequest.ToModel());
+
         if (!result.Success)
             return BadRequest(result);
 
         Response.Cookies.Delete("refreshToken");
-        
+
         return Ok(result);
     }
 
@@ -240,9 +272,9 @@ public class AuthController : ControllerBase
             return BadRequest(ApiResponse<string>.ErrorResult(errors));
         }
 
-        var adminUserName = User.Identity!.Name!;
-        var result = await _authLogic.AdminChangePasswordAsync(userId, changePasswordRequest.ToModel(), adminUserName);
-        
+        var adminUserId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var result = await _authLogic.AdminChangePasswordAsync(userId, changePasswordRequest.ToModel(), adminUserId);
+
         return result.Success ? Ok(result) : BadRequest(result);
     }
 }

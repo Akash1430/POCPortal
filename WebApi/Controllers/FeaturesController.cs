@@ -5,6 +5,7 @@ using Dtos;
 using Core.Feature;
 using Core.ModuleAccess;
 using Models.Constants;
+using System.Security.Claims;
 
 
 namespace WebApi.Controllers;
@@ -108,7 +109,7 @@ public class FeaturesController : ControllerBase
             return BadRequest(ApiResponse<UpdateUserRoleModuleAccessesResponseDto>.ErrorResult(errors));
         }
 
-        var updatedBy = User.Identity!.Name!;
+        var updatedBy = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var response = await _featureLogic.UpdateRolePermissionsAsync(roleId, request.ToModel(), updatedBy);
         if (response.Success && response.Data != null)
         {

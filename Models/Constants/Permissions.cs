@@ -26,7 +26,4 @@ public static class Permissions
     public const string MANAGER_CREATE = "MANAGER_CREATE";
     public const string MANAGER_UPDATE = "MANAGER_UPDATE";
     public const string MANAGER_DELETE = "MANAGER_DELETE";
-
-    // Module permissions
-    public const string MODULE_READ = "MODULE_READ";
 }

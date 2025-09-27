@@ -181,7 +181,7 @@ public class FeatureLogic : IFeatureLogic
         }
     }
 
-    public async Task<ApiResponse<UpdateUserRoleModuleAccessesResponseModel>> UpdateRolePermissionsAsync(int roleId, UpdateUserRoleModuleAccessesRequestModel request, string updatedBy)
+    public async Task<ApiResponse<UpdateUserRoleModuleAccessesResponseModel>> UpdateRolePermissionsAsync(int roleId, UpdateUserRoleModuleAccessesRequestModel request, int updatedBy)
     {
         try
         {
@@ -204,15 +204,13 @@ public class FeatureLogic : IFeatureLogic
             // Remove existing permissions
             await _unitOfWork.UserRoleAccesses.DeleteRangeAsync(currentAccesses);
 
-            var user = await _unitOfWork.Users.FindFirstAsync(u => u.UserName == updatedBy);
-            var userId = user != null ? user.Id : 1; // Default to system
-                                                     // Add new permissions
+
             var newAccesses = request.ModuleAccessIds.Select(permissionId => new DataAccess.UserRoleAccess
             {
                 UserRoleId = roleId,
                 ModuleAccessId = permissionId,
                 DateCreatedUTC = DateTime.UtcNow,
-                CreatedBy = userId
+                CreatedBy = updatedBy
             });
 
             await _unitOfWork.UserRoleAccesses.AddRangeAsync(newAccesses);

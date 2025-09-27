@@ -2,11 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using Interfaces;
-using WebApi.Attributes;
 using Core.ModuleAccess;
 using Core.Module;
 using Core.Feature;
-using Models.Constants;
 using Dtos;
 
 namespace WebApi.Controllers;
@@ -28,11 +26,11 @@ public class ModuleController : ControllerBase
     /// <remarks>
     /// Gets a list of modules that the current user has access to based on their role.
     /// Modules are returned in a hierarchical structure with parent and child modules.
-    /// Requires MODULE_READ permission.
+    /// Requires authentication.
     /// </remarks>
     /// <returns>List of accessible modules in hierarchical structure</returns>
     [HttpGet("modules")]
-    [RequirePermission(Permissions.MODULE_READ)]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<ModulesDto>>> GetModules()
     {
         var response = await _moduleLogic.GetModulesAsync(User.FindFirstValue(ClaimTypes.Role)!);

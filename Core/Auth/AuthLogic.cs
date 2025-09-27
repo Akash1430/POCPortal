@@ -76,7 +76,7 @@ public class AuthLogic : IAuthLogic
         }
     }
 
-    public async Task<ApiResponse<RegisterResponseModel>> RegisterAsync(string userName, RegisterRequestModel registerRequest)
+    public async Task<ApiResponse<RegisterResponseModel>> RegisterAsync(int userId, RegisterRequestModel registerRequest)
     {
         try
         {
@@ -87,7 +87,7 @@ public class AuthLogic : IAuthLogic
                 return ApiResponse<RegisterResponseModel>.ErrorResult("Cannot register a user with SYSADMIN role");
             }
 
-            var createdBy = await _unitOfWork.Users.FindFirstAsync(u => u.UserName == userName);
+            var createdBy = await _unitOfWork.Users.FindFirstAsync(u => u.Id == userId);
             if (createdBy == null)
             {
                 return ApiResponse<RegisterResponseModel>.ErrorResult("Creator user not found");
@@ -153,11 +153,11 @@ public class AuthLogic : IAuthLogic
         }
     }
 
-    public async Task<ApiResponse<UserModel>> GetCurrentUserAsync(string userName)
+    public async Task<ApiResponse<UserModel>> GetCurrentUserAsync(int userId)
     {
         try
         {
-            var user = await _unitOfWork.Users.FindFirstAsync(u => u.UserName == userName);
+            var user = await _unitOfWork.Users.FindFirstAsync(u => u.Id == userId);
             if (user == null)
             {
                 return ApiResponse<UserModel>.ErrorResult("User not found");
@@ -458,8 +458,8 @@ public class AuthLogic : IAuthLogic
                 };
             }
 
-            var userRole = await _unitOfWork.UserRoles.FindAsync(ur => request.RoleRefs.Contains(ur.RefCode));
-            if (userRole == null || !userRole.Any())
+            var userRoles = await _unitOfWork.UserRoles.FindAsync(ur => request.RoleRefs.Contains(ur.RefCode));
+            if (userRoles == null || !userRoles.Any())
             {
                 return new ApiResponse<UsersResponseModel>
                 {
@@ -468,7 +468,7 @@ public class AuthLogic : IAuthLogic
                 };
             }
 
-            var roleIds = userRole.Select(ur => ur.Id).ToList();
+            var roleIds = userRoles.Select(ur => ur.Id).ToList();
             var searchTerm = request.SearchTerm?.Trim();
             var searchIsEmpty = string.IsNullOrWhiteSpace(searchTerm);
             var searchLower = searchTerm?.ToLower() ?? string.Empty;
@@ -506,7 +506,7 @@ public class AuthLogic : IAuthLogic
                     LastName = u.LastName,
                     UserName = u.UserName,
                     Email = u.Email,
-                    RoleRefCode = userRole.FirstOrDefault(ur => ur.Id == u.UserRoleId)?.RefCode ?? string.Empty,
+                    RoleRefCode = userRoles.First((ur) => ur.Id == u.UserRoleId).RefCode,
                     IsFrozen = u.IsFrozen,
                     LastLoginUTC = u.LastLoginUTC
                 })
@@ -534,7 +534,7 @@ public class AuthLogic : IAuthLogic
         }
     }
 
-    public async Task<ApiResponse<UserModel>> UpdateUserAsync(int userId, UpdateUserRequestModel updateRequest, string updatedBy)
+    public async Task<ApiResponse<UserModel>> UpdateUserAsync(int userId, UpdateUserRequestModel updateRequest, int updatedBy)
     {
         try
         {
@@ -542,6 +542,19 @@ public class AuthLogic : IAuthLogic
             if (user == null)
             {
                 return ApiResponse<UserModel>.ErrorResult("User not found");
+            }
+            var currentUserRole = await _unitOfWork.UserRoles.GetByIdAsync(user.UserRoleId);
+            if (string.Equals(currentUserRole!.RefCode, UserRoles.SYSADMIN) && user.Id != updatedBy)
+            {
+                return ApiResponse<UserModel>.ErrorResult("Cannot update SYSADMIN user");
+            }
+
+            // Check if username is already taken by another user
+            var existingUserWithUsername = await _unitOfWork.Users.FindFirstAsync(u =>
+                u.UserName == updateRequest.UserName && u.Id != userId);
+            if (existingUserWithUsername != null)
+            {
+                return ApiResponse<UserModel>.ErrorResult("Username is already in use by another user");
             }
 
             // Check if email is already taken by another user
@@ -553,25 +566,16 @@ public class AuthLogic : IAuthLogic
             }
 
             // Update user fields
+            user.UserName = updateRequest.UserName;
             user.FirstName = updateRequest.FirstName;
             user.LastName = updateRequest.LastName;
             user.Email = updateRequest.Email;
             user.LatestDateUpdatedUTC = DateTime.UtcNow;
-
-            // Set LatestUpdatedBy if the user entity has this field
-            if (!string.IsNullOrEmpty(updatedBy))
-            {
-                var updatedByUser = await _unitOfWork.Users.FindFirstAsync(u => u.UserName == updatedBy);
-                if (updatedByUser != null)
-                {
-                    user.LatestUpdatedBy = updatedByUser.Id;
-                }
-            }
+            user.LatestUpdatedBy = updatedBy;
 
             // Update role if provided and user is not SYSADMIN
             if (!string.IsNullOrEmpty(updateRequest.RoleRefCode))
             {
-                var currentUserRole = await _unitOfWork.UserRoles.GetByIdAsync(user.UserRoleId);
                 if (currentUserRole?.RefCode == UserRoles.SYSADMIN)
                 {
                     return ApiResponse<UserModel>.ErrorResult("Cannot change role of SYSADMIN user");
@@ -617,7 +621,7 @@ public class AuthLogic : IAuthLogic
         }
     }
 
-    public async Task<ApiResponse<UserModel>> FreezeUnfreezeUserAsync(int userId, FreezeUserRequestModel freezeRequest, string updatedBy)
+    public async Task<ApiResponse<UserModel>> FreezeUnfreezeUserAsync(int userId, FreezeUserRequestModel freezeRequest, int updatedBy)
     {
         try
         {
@@ -636,16 +640,7 @@ public class AuthLogic : IAuthLogic
 
             user.IsFrozen = freezeRequest.IsFrozen;
             user.LatestDateUpdatedUTC = DateTime.UtcNow;
-
-            // Set LatestUpdatedBy if the user entity has this field
-            if (!string.IsNullOrEmpty(updatedBy))
-            {
-                var updatedByUser = await _unitOfWork.Users.FindFirstAsync(u => u.UserName == updatedBy);
-                if (updatedByUser != null)
-                {
-                    user.LatestUpdatedBy = updatedByUser.Id;
-                }
-            }
+            user.LatestUpdatedBy = updatedBy;
 
             await _unitOfWork.Users.UpdateAsync(user);
             await _unitOfWork.SaveChangesAsync();
@@ -719,11 +714,11 @@ public class AuthLogic : IAuthLogic
         }
     }
 
-    public async Task<ApiResponse<string>> ChangePasswordAsync(string userName, ChangePasswordRequestModel changePasswordRequest)
+    public async Task<ApiResponse<string>> ChangePasswordAsync(int userId, ChangePasswordRequestModel changePasswordRequest)
     {
         try
         {
-            var user = await _unitOfWork.Users.FindFirstAsync(u => u.UserName == userName);
+            var user = await _unitOfWork.Users.FindFirstAsync(u => u.Id == userId);
             if (user == null)
             {
                 return ApiResponse<string>.ErrorResult("User not found");
@@ -743,6 +738,7 @@ public class AuthLogic : IAuthLogic
             // Hash and update new password
             user.Password = HashPassword(changePasswordRequest.NewPassword);
             user.LatestUpdatedBy = user.Id; // Self-update
+            user.PasswordChangedUTC = DateTime.UtcNow;
             user.LatestDateUpdatedUTC = DateTime.UtcNow;
 
             await _unitOfWork.Users.UpdateAsync(user);
@@ -759,7 +755,7 @@ public class AuthLogic : IAuthLogic
         }
     }
 
-    public async Task<ApiResponse<string>> AdminChangePasswordAsync(int userId, AdminChangePasswordRequestModel changePasswordRequest, string changedBy)
+    public async Task<ApiResponse<string>> AdminChangePasswordAsync(int userId, AdminChangePasswordRequestModel changePasswordRequest, int changedBy)
     {
         try
         {
@@ -776,7 +772,7 @@ public class AuthLogic : IAuthLogic
             }
 
             // Get the admin user making the change
-            var adminUser = await _unitOfWork.Users.FindFirstAsync(u => u.UserName == changedBy);
+            var adminUser = await _unitOfWork.Users.FindFirstAsync(u => u.Id == changedBy);
             if (adminUser == null)
             {
                 return ApiResponse<string>.ErrorResult("Admin user not found");
@@ -798,6 +794,7 @@ public class AuthLogic : IAuthLogic
             // Hash and update new password
             user.Password = HashPassword(changePasswordRequest.NewPassword);
             user.LatestUpdatedBy = adminUser.Id;
+            user.PasswordChangedUTC = null;
             user.LatestDateUpdatedUTC = DateTime.UtcNow;
 
             await _unitOfWork.Users.UpdateAsync(user);

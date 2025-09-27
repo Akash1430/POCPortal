@@ -77,6 +77,8 @@ public class FreezeUserRequestDto
 public class UpdateUserRequestDto
 {
     [Required]
+    public string UserName { get; set; } = string.Empty;
+    [Required]
     public string FirstName { get; set; } = string.Empty;
 
     [Required]

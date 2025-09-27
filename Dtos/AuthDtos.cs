@@ -79,4 +79,6 @@ public class MeDto
     public string Role { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
+    public DateTime? PasswordChangedUTC { get; set; }
+    public DateTime? LastLoginUTC { get; set; }
 }

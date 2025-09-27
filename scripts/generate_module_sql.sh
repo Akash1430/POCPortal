@@ -43,8 +43,8 @@ Module Options:
   -c, --code <code>           Module reference code (auto-generated if not provided)
   -p, --parent <parent_code>  Parent module code (for sub-modules)
   -d, --description <desc>    Module description
-  --logo <logo>              Logo name (default: module-icon)
-  --page <page>              Redirect page (default: /{code})
+  --logo <logo>              Logo name (default: module-icon.svg)
+  --page <page>              Redirect page (default: {code})
   --order <order>            Sort order (auto-calculated if not provided)
   --hidden                   Make module hidden (not visible in menu)
   -o, --output <file>        Output file (auto-generated if not provided)
@@ -125,11 +125,11 @@ generate_module_sql() {
     
     # Default values
     if [ -z "$logo" ]; then
-        logo="module-icon"
+        logo="module-icon.svg"
     fi
     
     if [ -z "$page" ]; then
-        page="/$(echo "$code" | tr '[:upper:]' '[:lower:]')"
+        page="$(echo "$code" | tr '[:upper:]' '[:lower:]')"
     fi
     
     if [ -z "$description" ]; then

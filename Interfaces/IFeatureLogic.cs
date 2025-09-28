@@ -11,4 +11,8 @@ public interface IFeatureLogic
 
     // Role Permission Management
     Task<ApiResponse<UpdateUserRoleModuleAccessesResponseModel>> UpdateRolePermissionsAsync(int roleId, UpdateUserRoleModuleAccessesRequestModel request, int updatedBy);
+
+    // Role Management
+    Task<ApiResponse<UserRoleModel>> CreateUserRoleAsync(CreateUserRoleRequestModel request, int createdBy);
+    Task<ApiResponse<string>> DeleteRoleAsync(int roleId);
 }

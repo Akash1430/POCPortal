@@ -1,158 +1,5 @@
-#!/bin/bash
-
-# Generate initial data SQL script
-# Creates or updates the SQL file with custom admin credentials
-
-set -e
-
-SCRIPT_DIR="$(dirname "$0")"
-SQL_DATA_DIR="$SCRIPT_DIR/sql/data"
-OUTPUT_FILE="$SQL_DATA_DIR/001_initial_data.sql"
-
-# Color codes and print functions
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-RED='\033[0;31m'
-NC='\033[0m'
-print_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-print_empty_line() {
-    echo ""
-}
-
-# Function to generate BCrypt hash
-generate_password_hash() {
-    local password="$1"
-    
-    if command -v htpasswd >/dev/null 2>&1; then
-        echo $(htpasswd -bnBC 12 "" "$password" | tr -d ':\n' | sed 's/^//')
-        return 0
-    fi
-
-    if command -v python3 >/dev/null 2>&1; then
-        local hash=$(python3 -c "
-import bcrypt
-import sys
-try:
-    password = sys.argv[1].encode('utf-8')
-    salt = bcrypt.gensalt(rounds=12)
-    hashed = bcrypt.hashpw(password, salt)
-    print(hashed.decode('utf-8'))
-except ImportError:
-    print('ERROR_NO_BCRYPT_MODULE')
-except Exception as e:
-    print(f'ERROR_{e}')
-" "$password" 2>/dev/null)
-        
-        if [[ "$hash" != ERROR_* ]]; then
-            echo "$hash"
-            return 0
-        fi
-    fi
-
-    return 1
-}
-
-# Function to show help message
-show_help() {
-    cat << EOF
-Generate Initial Data SQL Script
-
-Usage: $0 [options]
-
-Options:
-  -u, --username <username>    System Admin username (default: sysadmin)
-  -p, --password <password>    System Admin password (default: Admin@123)
-  -e, --email <email>         System Admin email (default: sysadmin@company.com)
-  -f, --firstname <name>      System Admin first name (default: System)
-  -l, --lastname <name>       System Admin last name (default: Administrator)
-  -o, --output <file>         Output file (default: $OUTPUT_FILE)
-  --help                     Show this help message
-
-Examples:
-  # Generate with default values
-  $0
-
-  # Generate with custom admin
-  $0 --username admin --password MySecurePass123! --email admin@mycompany.com
-
-  # Custom output location
-  $0 --output ./custom_initial_data.sql
-
-Note: This script generates BCrypt hashed passwords. Requires htpasswd.
-EOF
-}
-
-# Default values
-USERNAME="sysadmin"
-PASSWORD="Admin@123"
-EMAIL="sysadmin@company.com"
-FIRSTNAME="System"
-LASTNAME="Administrator"
-
-# Parse command-line arguments
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        -u|--username)
-            USERNAME="$2"
-            shift 2
-            ;;
-        -p|--password)
-            PASSWORD="$2"
-            shift 2
-            ;;
-        -e|--email)
-            EMAIL="$2"
-            shift 2
-            ;;
-        -f|--firstname)
-            FIRSTNAME="$2"
-            shift 2
-            ;;
-        -l|--lastname)
-            LASTNAME="$2"
-            shift 2
-            ;;
-        -o|--output)
-            OUTPUT_FILE="$2"
-            shift 2
-            ;;
-        --help)
-            show_help
-            exit 0
-            ;;
-        *)
-            print_error "Unknown option: $1"
-            show_help
-            exit 1
-            ;;
-    esac
-done
-
-# Generate BCrypt hash for password
-print_info "Generating BCrypt hash for password..."
-HASHED_PASSWORD=$(generate_password_hash "$PASSWORD")
-if [ $? -ne 0 ] || [ -z "$HASHED_PASSWORD" ]; then
-    print_error "Failed to generate password hash"
-    exit 1
-fi
-print_success "Password hash generated successfully"
-print_empty_line
-# Create output directory if it doesn't exist
-mkdir -p "$(dirname "$OUTPUT_FILE")"
-
-# Generate SQL script
-print_info "Generating SQL script at $OUTPUT_FILE..."
-cat > "$OUTPUT_FILE" << EOF
--- Initial Data Script
--- Generated: $(date '+%Y-%m-%d %H:%M:%S')
+-- Migration 003: Insert Initial Data
+-- Created: 2025-09-24
 -- Description: Inserts initial data for the Employee Management System
 
 USE EmployeeDB;
@@ -178,18 +25,18 @@ BEGIN
 END
 
 -- Create System User
-IF NOT EXISTS (SELECT * FROM Users WHERE UserName = '$USERNAME')
+IF NOT EXISTS (SELECT * FROM Users WHERE UserName = 'sysadmin')
 BEGIN
     INSERT INTO Users (FirstName, LastName, UserName, Password, Email, UserRoleId, CreatedBy)
-    VALUES ('$FIRSTNAME', '$LASTNAME', '$USERNAME', 
-            '$HASHED_PASSWORD',
-            '$EMAIL', @SuperAdminRoleId, 1);
+    VALUES ('System', 'Administrator', 'sysadmin', 
+            '$2y$12$A2GicVrRcQqrAI/YBXmuR.74G7Re.VxTKnyrJL4OSu5f.RUitO/JC',
+            'sysadmin@company.com', @SuperAdminRoleId, 1);
     SET @SystemUserId = SCOPE_IDENTITY();
     PRINT 'System Administrator user created with ID: ' + CAST(@SystemUserId AS NVARCHAR(10));
 END
 ELSE
 BEGIN
-    SELECT @SystemUserId = Id FROM Users WHERE UserName = '$USERNAME';
+    SELECT @SystemUserId = Id FROM Users WHERE UserName = 'sysadmin';
     PRINT 'System Administrator user already exists with ID: ' + CAST(@SystemUserId AS NVARCHAR(10));
 END
 
@@ -226,6 +73,8 @@ FROM (VALUES
     ('MANAGE_ADMIN', 'Change User Password', 'ADMIN_CHANGE_PASSWORD', 'Access to change user passwords'),
 
     ('MANAGE_FEATURE', 'Read Roles & Permissions', 'FEATURES_READ_ROLES', 'View roles and their assigned permissions'),
+    ('MANAGE_FEATURE', 'Create Role', 'FEATURES_CREATE_ROLE', 'Create new user roles'),
+    ('MANAGE_FEATURE', 'Delete Role', 'FEATURES_DELETE_ROLE', 'Delete user roles'),
     ('MANAGE_FEATURE', 'Read All Permissions', 'FEATURES_READ_PERMISSIONS', 'View all available permissions'),
     ('MANAGE_FEATURE', 'Manage Role Permissions', 'FEATURES_UPDATE_ROLE_PERMISSIONS', 'Update permissions assigned to roles'),
     
@@ -254,7 +103,8 @@ WHERE NOT EXISTS (
     WHERE UserRoleId = @SystemAdminRoleId AND ModuleAccessId = MA.Id
 )
 AND MA.RefCode IN ('ADMIN_READ', 'ADMIN_CREATE', 'ADMIN_UPDATE', 'ADMIN_DELETE', 'ADMIN_CHANGE_PASSWORD',
-                   'FEATURES_READ_ROLES', 'FEATURES_READ_PERMISSIONS', 'FEATURES_UPDATE_ROLE_PERMISSIONS');
+                   'FEATURES_READ_ROLES', 'FEATURES_READ_PERMISSIONS', 'FEATURES_UPDATE_ROLE_PERMISSIONS',
+                   'FEATURES_CREATE_ROLE', 'FEATURES_DELETE_ROLE');
 
 -- Grant basic access to user administrator role
 DECLARE @UserAdminRoleId INT;
@@ -271,10 +121,13 @@ AND MA.RefCode IN ('ADMIN_CHANGE_PASSWORD', 'EMPLOYEE_READ', 'EMPLOYEE_CREATE', 
                    'EMPLOYEE_DELETE', 'MANAGER_READ', 'MANAGER_CREATE', 'MANAGER_UPDATE', 'MANAGER_DELETE');
 
 PRINT 'Initial data setup completed successfully.';
-EOF
 
-print_success "Initial data SQL script generated: $OUTPUT_FILE"
-print_empty_line
-print_info "Generated Admin Credentials:"
-print_info "Username: $USERNAME"
-print_info "Password: $PASSWORD"
+
+-- Record this migration
+IF NOT EXISTS (SELECT * FROM DbVersions WHERE Version = '003')
+BEGIN
+    INSERT INTO DbVersions (Version, Description) 
+    VALUES ('003', 'Inserted initial data for roles, users, modules, accesses');
+END
+
+PRINT 'Migration 003 completed successfully.';

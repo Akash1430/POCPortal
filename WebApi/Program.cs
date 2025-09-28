@@ -32,7 +32,11 @@ builder.Services.AddScoped<IPermissionLogic, PermissionLogic>();
 builder.Services.AddScoped<IFeatureLogic, FeatureLogic>();
 
 // JWT Authentication
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "default-secret-key-that-should-be-changed-in-production";
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
+{
+    throw new InvalidOperationException("JWT Key must be at least 32 characters long for production");
+}
 var key = Encoding.ASCII.GetBytes(jwtKey);
 
 builder.Services.AddAuthentication(options =>
@@ -49,7 +53,9 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(key),
         ValidateIssuer = false,
+        // ValidIssuer = builder.Configuration["Jwt:Issuer"],
         ValidateAudience = false,
+        // ValidAudience = builder.Configuration["Jwt:Audience"],
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero
     };

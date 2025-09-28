@@ -3,6 +3,7 @@ using Models;
 using Core.ModuleAccess;
 using DataAccess.Interfaces;
 using Core.Module;
+using Core.UserRole;
 using Models.Constants;
 
 namespace Core.Feature;
@@ -235,6 +236,73 @@ public class FeatureLogic : IFeatureLogic
             return ApiResponse<UpdateUserRoleModuleAccessesResponseModel>.ErrorResult(
                 $"Error updating role permissions: {ex.Message}"
             );
+        }
+    }
+
+    public async Task<ApiResponse<UserRoleModel>> CreateUserRoleAsync(CreateUserRoleRequestModel request, int createdBy)
+    {
+        try
+        {
+            // Check for duplicate role name or ref code
+            var existingRole = await _unitOfWork.UserRoles.FindAsync(r =>
+                r.RoleName == request.RoleName || r.RefCode == request.RefCode);
+
+            if (existingRole.Any())
+            {
+                return ApiResponse<UserRoleModel>.ErrorResult("Role name or reference code already exists.");
+            }
+
+            var newRole = new DataAccess.UserRole
+            {
+                RoleName = request.RoleName,
+                RefCode = request.RefCode,
+                Description = request.Description,
+                IsVisible = true,
+                DateCreatedUTC = DateTime.UtcNow,
+                CreatedBy = createdBy
+            };
+
+            await _unitOfWork.UserRoles.AddAsync(newRole);
+            await _unitOfWork.SaveChangesAsync();
+
+            var createdRole = await _unitOfWork.UserRoles.GetByIdAsync(newRole.Id);
+
+            return ApiResponse<UserRoleModel>.SuccessResult(createdRole!.ToModel(), "Role created successfully");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<UserRoleModel>.ErrorResult($"Error creating role: {ex.Message}");
+        }
+    }
+
+    public async Task<ApiResponse<string>> DeleteRoleAsync(int roleId)
+    {
+        try
+        {
+            var role = await _unitOfWork.UserRoles.GetByIdAsync(roleId);
+            if (role == null)
+            {
+                return ApiResponse<string>.ErrorResult("Role not found");
+            }
+
+            if (role.RefCode == UserRoles.SYSADMIN || role.RefCode == UserRoles.USERADMIN)
+            {
+                return ApiResponse<string>.ErrorResult("Cannot delete SYSADMIN or USERADMIN role");
+            }
+
+            // Remove associated accesses
+            var accesses = await _unitOfWork.UserRoleAccesses.FindAsync(ura => ura.UserRoleId == roleId);
+            await _unitOfWork.UserRoleAccesses.DeleteRangeAsync(accesses);
+
+            // Remove the role itself
+            await _unitOfWork.UserRoles.DeleteAsync(role);
+            await _unitOfWork.SaveChangesAsync();
+
+            return ApiResponse<string>.SuccessResult("Role deleted successfully");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<string>.ErrorResult($"Error deleting role: {ex.Message}");
         }
     }
 }

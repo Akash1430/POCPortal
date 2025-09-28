@@ -20,10 +20,9 @@ public class CreateUserRoleRequestDto
     [MaxLength(50)]
     public string RefCode { get; set; } = string.Empty;
 
+    [Required]
     [MaxLength(500)]
     public string? Description { get; set; }
-
-    public bool IsVisible { get; set; } = true;
 }
 
 public class UpdateUserRoleRequestDto

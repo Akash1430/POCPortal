@@ -14,6 +14,8 @@ public static class Permissions
     public const string FEATURES_READ_ROLES = "FEATURES_READ_ROLES";
     public const string FEATURES_READ_PERMISSIONS = "FEATURES_READ_PERMISSIONS";
     public const string FEATURES_UPDATE_ROLE_PERMISSIONS = "FEATURES_UPDATE_ROLE_PERMISSIONS";
+    public const string FEATURES_CREATE_ROLE = "FEATURES_CREATE_ROLE";
+    public const string FEATURES_DELETE_ROLE = "FEATURES_DELETE_ROLE";
 
     // Employee permissions
     public const string EMPLOYEE_READ = "EMPLOYEE_READ";

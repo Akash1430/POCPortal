@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Interfaces;
 using WebApi.Attributes;
 using Dtos;
+using Core.UserRole;
 using Core.Feature;
 using Core.ModuleAccess;
 using Models.Constants;
@@ -116,5 +117,39 @@ public class FeaturesController : ControllerBase
             return Ok(ApiResponse<UpdateUserRoleModuleAccessesResponseDto>.SuccessResult(response.Data.ToDto(), response.Message));
         }
         return BadRequest(ApiResponse<UpdateUserRoleModuleAccessesResponseDto>.ErrorResult(response.Message));
+    }
+
+    [HttpPost("role")]
+    [RequirePermission(Permissions.FEATURES_CREATE_ROLE)]
+    public async Task<ActionResult<ApiResponse<CreateUserRoleRequestDto>>> CreateUserRole([FromBody] CreateUserRoleRequestDto request)
+    {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+            return BadRequest(ApiResponse<CreateUserRoleRequestDto>.ErrorResult(errors));
+        }
+
+        var createdBy = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var response = await _featureLogic.CreateUserRoleAsync(request.ToModel(), createdBy);
+        if (response.Success && response.Data != null)
+        {
+            return Ok(ApiResponse<UserRoleDto>.SuccessResult(response.Data.ToDto(), response.Message));
+        }
+        return BadRequest(ApiResponse<UserRoleDto>.ErrorResult(response.Message));
+    }
+
+    [HttpDelete("role/{roleId}")]
+    [RequirePermission(Permissions.FEATURES_DELETE_ROLE)]
+    public async Task<ActionResult<ApiResponse<string>>> DeleteUserRole(int roleId)
+    {
+        var response = await _featureLogic.DeleteRoleAsync(roleId);
+        if (response.Success && response.Data != null)
+        {
+            return Ok(ApiResponse<string>.SuccessResult(response.Data, response.Message));
+        }
+        return BadRequest(ApiResponse<string>.ErrorResult(response.Message));
     }
 }

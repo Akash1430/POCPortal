@@ -91,7 +91,7 @@ get_next_data_number() {
         # Find the highest numbered data file
         local highest=$(find "$SQL_DATA_DIR" -name "[0-9][0-9][0-9]_*.sql" | sed 's/.*\/\([0-9][0-9][0-9]\)_.*/\1/' | sort -n | tail -n 1)
         if [ -z "$highest" ]; then
-            echo "002"  # Start from 002 since 001 is initial_data
+            echo "001"  # Start from 001
         else
             printf "%03d" $((10#$highest + 1))
         fi
@@ -99,7 +99,7 @@ get_next_data_number() {
         # Extract numbers from existing files with same prefix
         local highest=$(echo "${existing_files[@]}" | tr ' ' '\n' | sed 's/.*\/\([0-9][0-9][0-9]\)_.*/\1/' | sort -n | tail -n 1)
         if [ -z "$highest" ]; then
-            echo "002"
+            echo "001"
         else
             printf "%03d" $((10#$highest + 1))
         fi

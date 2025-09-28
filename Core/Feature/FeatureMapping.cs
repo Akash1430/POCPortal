@@ -53,5 +53,16 @@ public static class FeatureMapping
             ModuleAccessRefs = model.ModuleAccessRefs ?? []
         };
     }
+
+    public static CreateUserRoleRequestModel ToModel(this CreateUserRoleRequestDto dto)
+    {
+        if (dto == null) return null!;
+        return new CreateUserRoleRequestModel
+        {
+            RoleName = dto.RoleName,
+            RefCode = dto.RefCode,
+            Description = dto.Description ?? string.Empty
+        };
+    }
 }
 

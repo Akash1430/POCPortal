@@ -8,7 +8,6 @@ public static class Permissions
     public const string ADMIN_READ = "ADMIN_READ";
     public const string ADMIN_UPDATE = "ADMIN_UPDATE";
     public const string ADMIN_DELETE = "ADMIN_DELETE";
-    public const string ADMIN_CHANGE_PASSWORD = "ADMIN_CHANGE_PASSWORD";
 
     // Feature permissions
     public const string FEATURES_READ_ROLES = "FEATURES_READ_ROLES";

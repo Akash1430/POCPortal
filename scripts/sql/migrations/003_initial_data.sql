@@ -70,7 +70,6 @@ FROM (VALUES
     ('MANAGE_ADMIN', 'Create Admin', 'ADMIN_CREATE', 'Access to create new admin users'),
     ('MANAGE_ADMIN', 'Edit Admin', 'ADMIN_UPDATE', 'Access to update admin user details'),
     ('MANAGE_ADMIN', 'Delete Admin', 'ADMIN_DELETE', 'Access to delete admin users'),
-    ('MANAGE_ADMIN', 'Change User Password', 'ADMIN_CHANGE_PASSWORD', 'Access to change user passwords'),
 
     ('MANAGE_FEATURE', 'Read Roles & Permissions', 'FEATURES_READ_ROLES', 'View roles and their assigned permissions'),
     ('MANAGE_FEATURE', 'Create Role', 'FEATURES_CREATE_ROLE', 'Create new user roles'),
@@ -91,6 +90,13 @@ FROM (VALUES
 INNER JOIN Modules M ON M.RefCode = AccessData.ModuleRef
 WHERE NOT EXISTS (SELECT * FROM ModuleAccesses WHERE RefCode = AccessData.RefCode);
 
+-- Hide certain module accesses from UI
+UPDATE ModuleAccesses
+SET IsVisible = 0
+WHERE RefCode IN ('ADMIN_READ', 'ADMIN_CREATE', 'ADMIN_UPDATE', 'ADMIN_DELETE',
+                  'FEATURES_READ_ROLES', 'FEATURES_CREATE_ROLE', 'FEATURES_DELETE_ROLE',
+                  'FEATURES_READ_PERMISSIONS', 'FEATURES_UPDATE_ROLE_PERMISSIONS');
+
 -- Grant only necessary access to System Administrator role (MANAGE_ADMIN and MANAGE_FEATURE modules)
 DECLARE @SystemAdminRoleId INT;
 SELECT @SystemAdminRoleId = Id FROM UserRoles WHERE RefCode = 'SYSADMIN';
@@ -102,7 +108,7 @@ WHERE NOT EXISTS (
     SELECT * FROM UserRoleAccesses 
     WHERE UserRoleId = @SystemAdminRoleId AND ModuleAccessId = MA.Id
 )
-AND MA.RefCode IN ('ADMIN_READ', 'ADMIN_CREATE', 'ADMIN_UPDATE', 'ADMIN_DELETE', 'ADMIN_CHANGE_PASSWORD',
+AND MA.RefCode IN ('ADMIN_READ', 'ADMIN_CREATE', 'ADMIN_UPDATE', 'ADMIN_DELETE',
                    'FEATURES_READ_ROLES', 'FEATURES_READ_PERMISSIONS', 'FEATURES_UPDATE_ROLE_PERMISSIONS',
                    'FEATURES_CREATE_ROLE', 'FEATURES_DELETE_ROLE');
 
@@ -117,7 +123,7 @@ WHERE NOT EXISTS (
     SELECT * FROM UserRoleAccesses 
     WHERE UserRoleId = @UserAdminRoleId AND ModuleAccessId = MA.Id
 )
-AND MA.RefCode IN ('ADMIN_CHANGE_PASSWORD', 'EMPLOYEE_READ', 'EMPLOYEE_CREATE', 'EMPLOYEE_UPDATE', 
+AND MA.RefCode IN ('EMPLOYEE_READ', 'EMPLOYEE_CREATE', 'EMPLOYEE_UPDATE', 
                    'EMPLOYEE_DELETE', 'MANAGER_READ', 'MANAGER_CREATE', 'MANAGER_UPDATE', 'MANAGER_DELETE');
 
 PRINT 'Initial data setup completed successfully.';

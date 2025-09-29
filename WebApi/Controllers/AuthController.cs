@@ -253,14 +253,14 @@ public class AuthController : ControllerBase
     /// </summary>
     /// <remarks>
     /// Allows administrators to change another user's password.
-    /// Requires the ADMIN_CHANGE_PASSWORD permission.
+    /// Requires the USERADMIN role.
     /// The target user's refresh tokens will be revoked after successful password change.
     /// </remarks>
     /// <param name="userId">User ID whose password should be changed</param>
     /// <param name="changePasswordRequest">New password details</param>
     /// <returns>Password change confirmation</returns>
     [HttpPost("admin-change-password/{userId}")]
-    [RequirePermission(Permissions.ADMIN_CHANGE_PASSWORD)]
+    [Authorize(Roles = UserRoles.USERADMIN)]
     public async Task<ActionResult<ApiResponse<string>>> AdminChangePassword(int userId, [FromBody] AdminChangePasswordRequestDto changePasswordRequest)
     {
         if (!ModelState.IsValid)

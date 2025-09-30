@@ -79,9 +79,26 @@ Swagger UI: `http://localhost:8080/swagger`
 
 For production deployment without HTTPS.
 
+#### Generate Secure JWT Key
+
+**Using PowerShell:**
+```powershell
+# Generate a secure 64-character JWT key
+$bytes = New-Object byte[] 48
+(New-Object System.Security.Cryptography.RNGCryptoServiceProvider).GetBytes($bytes)
+[System.Convert]::ToBase64String($bytes)
+
+# Alternative method
+[System.Web.Security.Membership]::GeneratePassword(64, 10)
+
+# Simple GUID-based method
+(New-Guid).ToString() + (New-Guid).ToString() -replace '-', ''
+```
+
 #### Configure Production HTTP Settings
 
 Edit `WebApi\appsettings.Production.json`:
+
 
 ```json
 {

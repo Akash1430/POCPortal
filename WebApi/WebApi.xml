@@ -23,6 +23,17 @@
             </remarks>
             <returns>Current user information</returns>
         </member>
+        <member name="M:WebApi.Controllers.AuthController.UpdateCurrentUser(Dtos.UpdateUserRequestDto)">
+            <summary>
+            Updates the current user's profile information
+            </summary>
+            <remarks>
+            Allows the authenticated user to update their own profile details, such as name, email, etc.
+            The user's role cannot be changed using this endpoint. Omit the RoleRefCode field or set it to null.
+            </remarks>
+            <param name="updateRequest">Profile update request containing new user details</param>
+            <returns>Updated user information</returns>
+        </member>
         <member name="M:WebApi.Controllers.AuthController.RefreshToken">
             <summary>
             Refreshes an access token using a valid refresh token from HTTP-only cookie
@@ -146,7 +157,7 @@
             <remarks>
             Gets a list of modules that the current user has access to based on their role.
             Modules are returned in a hierarchical structure with parent and child modules.
-            Requires MODULE_READ permission.
+            Requires authentication.
             </remarks>
             <returns>List of accessible modules in hierarchical structure</returns>
         </member>

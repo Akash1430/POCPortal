@@ -27,12 +27,17 @@ services:
       dockerfile: Dockerfile
     container_name: employee-mgmt-system-api
     env_file:
-      - .env
+      - .env      
     environment:
-      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
-      - ASPNETCORE_URLS=${ASPNETCORE_URLS}
+      - USE_HTTPS=false
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Kestrel__Endpoints__Http__Url=${Kestrel__Endpoints__Http__Url}
       - ConnectionStrings__DefaultConnection=${ConnectionStrings__DefaultConnection}
+      - Cors__AllowedOrigins=${Cors__AllowedOrigins}
       - Jwt__Key=${Jwt__Key}
+      - Jwt__Issuer=${Jwt__Issuer}
+      - Jwt__Audience=${Jwt__Audience}
+      - Jwt__ExpireMinutes=${Jwt__ExpireMinutes}
     ports:
       - "8080:80"
     depends_on:
@@ -40,13 +45,35 @@ services:
         condition: service_healthy
     networks:
       - employee-management-system-network
-    # healthcheck:
-    #   test: ["CMD", "curl", "-f", "http://localhost:80/health"]
-    #   interval: 30s
-    #   timeout: 10s
-    #   retries: 3
-    #   start_period: 60s
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:80/health && curl -f http://localhost:80/health/database"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     restart: unless-stopped
+    volumes:
+      - ./Core:/app/Core
+      - /app/Core/bin
+      - /app/Core/obj
+      - ./DataAccess:/app/DataAccess
+      - /app/DataAccess/bin
+      - /app/DataAccess/obj
+      - ./Dtos:/app/Dtos
+      - /app/Dtos/bin
+      - /app/Dtos/obj
+      - ./Interfaces:/app/Interfaces
+      - /app/Interfaces/bin
+      - /app/Interfaces/obj
+      - ./Models:/app/Models
+      - /app/Models/bin
+      - /app/Models/obj
+      - ./WebApi:/app/WebApi
+      - /app/WebApi/bin
+      - /app/WebApi/obj
+      - ./EmployeeManagementSystem.sln:/app/EmployeeManagementSystem.sln
+    command: ["dotnet", "watch", "run", "--project", "WebApi/WebApi.csproj", "--launch-profile", "development"]
+
 
 networks:
   employee-management-system-network:

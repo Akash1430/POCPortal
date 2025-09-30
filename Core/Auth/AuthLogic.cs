@@ -51,7 +51,7 @@ public class AuthLogic : IAuthLogic
                 return ApiResponse<LoginResponseModel>.ErrorResult("User role not found");
             }
 
-            var expiration = DateTime.UtcNow.AddSeconds(15 * 60); // Token valid for 15 minutes
+            var expiration = DateTime.UtcNow.AddMinutes(int.Parse(_configuration["Jwt:ExpireMinutes"] ?? "15"));
             var accessToken = GenerateJwtToken(user.ToModel(), userRole.ToModel(), expiration);
 
             // Generate refresh token
@@ -219,6 +219,8 @@ public class AuthLogic : IAuthLogic
         {
             Subject = new ClaimsIdentity(claims),
             Expires = expiration,
+            Audience = _configuration["Jwt:Audience"],
+            Issuer = _configuration["Jwt:Issuer"],
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
 
@@ -257,7 +259,7 @@ public class AuthLogic : IAuthLogic
             await _unitOfWork.RefreshTokens.UpdateAsync(refreshToken);
 
             // Generate new tokens
-            var accessTokenExpiration = DateTime.UtcNow.AddSeconds(15 * 60); // Token valid for 15 minutes
+            var accessTokenExpiration = DateTime.UtcNow.AddMinutes(int.Parse(_configuration["Jwt:ExpireMinutes"] ?? "15"));
             var newAccessToken = GenerateJwtToken(user.ToModel(), userRole.ToModel(), accessTokenExpiration);
             var newRefreshToken = await GenerateRefreshTokenAsync(user.Id);
 

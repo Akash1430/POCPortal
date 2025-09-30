@@ -31,6 +31,9 @@ builder.Services.AddScoped<IModuleLogic, ModuleLogic>();
 builder.Services.AddScoped<IPermissionLogic, PermissionLogic>();
 builder.Services.AddScoped<IFeatureLogic, FeatureLogic>();
 
+// Detect if HTTPS should be used
+var useHttps = Environment.GetEnvironmentVariable("USE_HTTPS") == "true";
+
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"];
 if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
@@ -38,7 +41,6 @@ if (string.IsNullOrEmpty(jwtKey) || jwtKey.Length < 32)
     throw new InvalidOperationException("JWT Key must be at least 32 characters long for production");
 }
 var key = Encoding.ASCII.GetBytes(jwtKey);
-
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -46,16 +48,16 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.RequireHttpsMetadata = false;
+    options.RequireHttpsMetadata = useHttps;
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = false,
-        // ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidateAudience = false,
-        // ValidAudience = builder.Configuration["Jwt:Audience"],
+        ValidateIssuer = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidateAudience = true,
+        ValidAudience = builder.Configuration["Jwt:Audience"],
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero
     };
@@ -68,14 +70,24 @@ builder.Services.AddHealthChecks()
     .AddSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")!, name: "database");
 
 // CORS
+var corsOrigins = builder.Configuration["Cors:AllowedOrigins"]?.Split(',') ?? [];
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("EmployeeManagementCors", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:4200", "http://localhost:5173", "http://localhost:8080")
+        if (corsOrigins.Length > 0)
+        {
+            policy.WithOrigins(corsOrigins)
                .AllowAnyMethod()
                .AllowAnyHeader()
                .AllowCredentials();
+        }
+        else
+        {
+            policy.AllowAnyOrigin()
+               .AllowAnyMethod()
+               .AllowAnyHeader();
+        }
     });
 });
 
@@ -130,6 +142,21 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("X-API-Version", "1.0");
+    context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
+
+    if (!app.Environment.IsDevelopment())
+    {
+        context.Response.Headers.Append("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    }
+
+    await next();
+});
+
+
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
@@ -140,11 +167,20 @@ if (app.Environment.IsDevelopment())
         c.RoutePrefix = "swagger";
         c.DocumentTitle = "Employee Management API Documentation";
     });
+    app.UseDeveloperExceptionPage();
+}
+else
+{
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
 }
 
+if (useHttps)
+{
+    app.UseHttpsRedirection();
+}
 
-app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+app.UseCors("EmployeeManagementCors");
 
 app.UseAuthentication();
 app.UseAuthorization();

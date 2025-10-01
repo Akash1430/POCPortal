@@ -102,13 +102,6 @@ Edit `WebApi\appsettings.Production.json`:
 
 ```json
 {
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
-  },
-  "AllowedHosts": "*",
   "Kestrel": {
     "Endpoints": {
       "Http": {
@@ -201,13 +194,6 @@ Configure `WebApi\appsettings.Production.json`:
 
 ```json
 {
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
-  },
-  "AllowedHosts": "*",
   "Kestrel": {
     "Certificates": {
       "Default": {

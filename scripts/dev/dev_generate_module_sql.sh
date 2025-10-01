@@ -6,7 +6,7 @@
 set -e
 
 SCRIPT_DIR="$(dirname "$0")"
-SQL_DATA_DIR="$SCRIPT_DIR/sql/data"
+SQL_DATA_DIR="$SCRIPT_DIR/../sql/data"
 
 # Color codes and print functions
 GREEN='\033[0;32m'

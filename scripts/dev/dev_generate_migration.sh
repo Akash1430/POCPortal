@@ -6,7 +6,7 @@
 set -e
 
 SCRIPT_DIR="$(dirname "$0")"
-MIGRATIONS_DIR="$SCRIPT_DIR/sql/migrations"
+MIGRATIONS_DIR="$SCRIPT_DIR/../sql/migrations"
 
 # Color codes and print functions
 BLUE='\033[0;34m'
@@ -77,7 +77,7 @@ fi
 mkdir -p "$MIGRATIONS_DIR"
 
 # Create data directory if it doesn't exist
-DATA_DIR="$SCRIPT_DIR/sql/data"
+DATA_DIR="$SCRIPT_DIR/../sql/data"
 mkdir -p "$DATA_DIR"
 
 # Get the next migration number

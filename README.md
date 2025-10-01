@@ -27,17 +27,10 @@ For local development without Docker and HTTPS.
 
 #### Configure Development Settings
 
-Edit `WebApi\appsettings.json`:
+Edit `WebApi\appsettings.Development.json` where you can set your database connection string, JWT settings, and CORS policies:
 
 ```json
 {
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
-  },
-  "AllowedHosts": "*",
   "Kestrel": {
     "Endpoints": {
       "Http": {
@@ -75,6 +68,8 @@ dotnet run --project WebApi --launch-profile development
 The API will be available at: `http://localhost:8080`
 Swagger UI: `http://localhost:8080/swagger`
 
+You can now skip to the [Database Migration](#5-database-migration) section to set up the database.
+
 ### 3. Production Setup (HTTP - No HTTPS)
 
 For production deployment without HTTPS.
@@ -87,9 +82,6 @@ For production deployment without HTTPS.
 $bytes = New-Object byte[] 48
 (New-Object System.Security.Cryptography.RNGCryptoServiceProvider).GetBytes($bytes)
 [System.Convert]::ToBase64String($bytes)
-
-# Alternative method
-[System.Web.Security.Membership]::GeneratePassword(64, 10)
 
 # Simple GUID-based method
 (New-Guid).ToString() + (New-Guid).ToString() -replace '-', ''
@@ -106,6 +98,9 @@ Edit `WebApi\appsettings.Production.json`:
     "Endpoints": {
       "Http": {
         "Url": "http://localhost:8080"
+      },
+      "Https": {
+        "Url": "https://localhost:8443"
       }
     }
   },
@@ -122,6 +117,7 @@ Edit `WebApi\appsettings.Production.json`:
     "AllowedOrigins": "http://localhost:3000,http://localhost:4200"
   }
 }
+
 ```
 
 #### Run the Application
@@ -138,6 +134,8 @@ dotnet run --project WebApi --launch-profile production-http
 
 The API will be available at: `http://localhost:8080`
 Swagger UI: `http://localhost:8080/swagger`
+
+You can now skip to the [Database Migration](#5-database-migration) section to set up the database.
 
 ### 4. Production Setup (HTTPS)
 
@@ -244,7 +242,7 @@ Adjust these values to match your SQL Server configuration.
 
 #### Run Migration Script
 ```powershell
-# Run batch file
+# Run batch file through Command Prompt or PowerShell
 .\scripts\run_migrations.bat
 ```
 
